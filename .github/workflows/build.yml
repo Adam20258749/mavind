@@ -28,9 +28,10 @@ jobs:
         # periodically serve a corrupt index and break `apt-get update`. We don't
         # need them.
         run: |
-          # On GH runners the base Ubuntu repos live in .../ubuntu.sources (deb822);
-          # third-party ones are legacy .list files. Drop only the .list files.
-          sudo rm -f /etc/apt/sources.list.d/*.list || true
+          # Base Ubuntu repos are in ubuntu.sources; everything else here is
+          # third-party (google-chrome.sources etc.) and periodically ships a
+          # corrupt index. Keep only ubuntu.sources.
+          sudo find /etc/apt/sources.list.d -maxdepth 1 -type f ! -name "ubuntu.sources" -delete || true
           echo "remaining apt sources:"; ls -la /etc/apt/sources.list.d/ || true
 
       - name: Install toolchain + GTK dev
@@ -57,7 +58,7 @@ jobs:
 
       - name: Clean flaky third-party apt repos
         run: |
-          sudo rm -f /etc/apt/sources.list.d/*.list || true
+          sudo find /etc/apt/sources.list.d -maxdepth 1 -type f ! -name "ubuntu.sources" -delete || true
           echo "remaining apt sources:"; ls -la /etc/apt/sources.list.d/ || true
 
       - name: Install build dependencies
