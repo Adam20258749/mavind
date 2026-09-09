@@ -11,13 +11,14 @@ mod cli;
 mod engine;
 mod gui;
 
+use gtk4::glib::ExitCode;
 use std::path::PathBuf;
 
-fn main() -> std::process::ExitCode {
+fn main() -> ExitCode {
     let argv: Vec<String> = std::env::args().collect();
     let prog = argv
         .first()
-        .map(|p| PathBuf::from(p))
+        .map(PathBuf::from)
         .and_then(|p| p.file_name().map(|s| s.to_string_lossy().into_owned()))
         .unwrap_or_default();
     let args = &argv[1..];
@@ -36,30 +37,22 @@ fn main() -> std::process::ExitCode {
     }
 
     // ---- GUI routes -------------------------------------------------
-    let install_file = args
-        .iter()
-        .map(PathBuf::from)
-        .find(|p| {
-            p.is_file()
-                && p.extension()
-                    .map(|e| e.eq_ignore_ascii_case("exe") || e.eq_ignore_ascii_case("msi"))
-                    .unwrap_or(false)
-        });
+    let install_file = args.iter().map(PathBuf::from).find(|p| {
+        p.is_file()
+            && p.extension()
+                .map(|e| e.eq_ignore_ascii_case("exe") || e.eq_ignore_ascii_case("msi"))
+                .unwrap_or(false)
+    });
 
-    let code = gui::run(install_file);
-    if code == gtk4::glib::ExitCode::SUCCESS {
-        std::process::ExitCode::SUCCESS
-    } else {
-        std::process::ExitCode::FAILURE
-    }
+    gui::run(install_file)
 }
 
-fn finish(r: anyhow::Result<()>) -> std::process::ExitCode {
+fn finish(r: anyhow::Result<()>) -> ExitCode {
     match r {
-        Ok(()) => std::process::ExitCode::SUCCESS,
+        Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
             eprintln!("mavind-wine: {e:#}");
-            std::process::ExitCode::FAILURE
+            ExitCode::FAILURE
         }
     }
 }

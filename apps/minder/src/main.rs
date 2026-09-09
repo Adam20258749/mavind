@@ -359,7 +359,7 @@ fn build(app: &Application, start_arg: Option<PathBuf>) {
         let alert = gtk4::AlertDialog::builder()
             .message(format!("Move {} item(s) to Trash?", sel.len()))
             .detail("Trashed files go to ~/.local/share/mavind/trash")
-            .buttons(vec!["Cancel".to_string(), "Move to Trash".to_string()])
+            .buttons(["Cancel", "Move to Trash"])
             .cancel_button(0)
             .default_button(1)
             .modal(true)

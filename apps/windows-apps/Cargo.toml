@@ -13,7 +13,7 @@ name = "mavind-windows-apps"
 path = "src/main.rs"
 
 [dependencies]
-gtk4 = { version = "0.9", features = ["v4_10"] }
+gtk4 = { version = "0.9", features = ["v4_12"] }
 glib = "0.20"
 serde.workspace = true
 serde_json.workspace = true

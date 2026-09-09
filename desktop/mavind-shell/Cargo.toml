@@ -13,7 +13,7 @@ name = "mavind-shell"
 path = "src/main.rs"
 
 [dependencies]
-gtk4 = { version = "0.9", features = ["v4_10"] }
+gtk4 = { version = "0.9", features = ["v4_12"] }
 gtk4-layer-shell = "0.4"
 glib = "0.20"
 anyhow.workspace = true
