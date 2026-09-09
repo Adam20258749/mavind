@@ -57,12 +57,14 @@ jobs:
   iso:
     needs: components
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 100
     container:
       image: debian:trixie
       options: --privileged
+    # Push builds do `core` (prove the base OS boots); use the manual
+    # "Run workflow" button with profile=compat/full for the Wine tiers.
     env:
-      PROFILE: ${{ inputs.profile || 'compat' }}
+      PROFILE: ${{ inputs.profile || 'core' }}
     steps:
       - name: Base tools
         run: |
@@ -77,7 +79,7 @@ jobs:
             mmdebstrap debian-archive-keyring \
             squashfs-tools xorriso mtools dosfstools \
             grub-common grub-pc-bin grub-efi-amd64-bin \
-            cargo rustc pkg-config \
+            cargo rustc pkg-config binutils \
             libgtk-4-dev libglib2.0-dev libgtk4-layer-shell-dev libadwaita-1-dev \
             libpango1.0-dev libcairo2-dev \
             zstd file rsync fakeroot uidmap
@@ -106,7 +108,8 @@ jobs:
       - name: Headless boot smoke test (QEMU)
         run: |
           apt-get install -y --no-install-recommends qemu-system-x86 ovmf
-          ./tests/smoke-boot.sh build/out/Mavind.iso 240
+          # No KVM on the runner -> TCG software emulation, so allow generous time.
+          ./tests/smoke-boot.sh build/out/Mavind.iso 600
 
       - name: Upload ISO + metadata
         if: always()

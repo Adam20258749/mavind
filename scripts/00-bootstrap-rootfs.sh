@@ -70,24 +70,28 @@ mmdebstrap \
 log "core rootfs: $(du -sh --apparent-size "${ROOTFS}" | cut -f1)"
 
 # ---------------------------------------------------------------------------
-# Tier packages that need apt inside the chroot (i386 multiarch for Wine, etc.)
+# Always give the image a sane sources.list (mmdebstrap's may be minimal).
 # ---------------------------------------------------------------------------
-trap 'chroot_umount "${ROOTFS}"' EXIT
-chroot_mount "${ROOTFS}"
-
 cat > "${ROOTFS}/etc/apt/sources.list" <<EOF
 deb ${MAVIND_MIRROR} ${MAVIND_SUITE} ${COMPONENTS}
 deb ${MAVIND_MIRROR} ${MAVIND_SUITE}-updates ${COMPONENTS}
 deb http://security.debian.org/debian-security ${MAVIND_SUITE}-security ${COMPONENTS}
 EOF
-chroot_apt "${ROOTFS}" update
 
+# ---------------------------------------------------------------------------
+# Tier packages need apt INSIDE the chroot (i386 multiarch for Wine, etc.).
+# `core` installs nothing extra here, so it never touches chroot networking.
+# ---------------------------------------------------------------------------
 if [ "${MAVIND_PROFILE}" != "core" ]; then
+  trap 'chroot_umount "${ROOTFS}"' EXIT
+  chroot_mount "${ROOTFS}"
+
   step "compat tier: i386 multiarch + Wine set"
   in_chroot "${ROOTFS}" dpkg --add-architecture i386
   chroot_apt "${ROOTFS}" update
   mapfile -t COMPAT < <(read_list "${PKG_DIR}/compat.list")
   log "compat packages: ${#COMPAT[@]}"
+  # `wine` pulls the correct i386 deps itself; don't hand-list every :i386 lib.
   chroot_apt "${ROOTFS}" install "${COMPAT[@]}"
 fi
 
@@ -100,13 +104,17 @@ if [ "${MAVIND_PROFILE}" = "full" ]; then
   fi
 fi
 
-# Stash the apt cache on the host for next time, then clear it inside the image.
+# Stash the apt cache on the host for next time, then clear it in the image
+# (host-side rm — no chroot needed, so the core path stays offline-safe).
 cp -a "${ROOTFS}/var/cache/apt/archives/." "${CACHE_DIR}/apt/" 2>/dev/null || true
-in_chroot "${ROOTFS}" apt-get clean
-rm -rf "${ROOTFS}/var/lib/apt/lists/"* "${ROOTFS}/var/cache/apt/archives/"*.deb
+rm -rf "${ROOTFS}/var/cache/apt/archives/"*.deb \
+       "${ROOTFS}/var/cache/apt/archives/partial/"* \
+       "${ROOTFS}/var/lib/apt/lists/"*
 
-chroot_umount "${ROOTFS}"
-trap - EXIT
+if [ "${MAVIND_PROFILE}" != "core" ]; then
+  chroot_umount "${ROOTFS}"
+  trap - EXIT
+fi
 
 mkdir -p "$(dirname "${OUT_ISO}")"
 chroot "${ROOTFS}" dpkg-query -W -f='${Package}\t${Version}\t${Architecture}\n' \

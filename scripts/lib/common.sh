@@ -71,8 +71,14 @@ chroot_mount() {
   mount -t sysfs sys     "${d}/sys"
   mount -t tmpfs tmpfs   "${d}/run"
   CHROOT_MOUNTS=("${d}/run" "${d}/sys" "${d}/proc" "${d}/dev/pts" "${d}/dev")
-  # resolv.conf for apt inside the chroot
-  cp -f /etc/resolv.conf "${d}/etc/resolv.conf" 2>/dev/null || true
+  # Working DNS inside the chroot: mmdebstrap can leave /etc/resolv.conf as a
+  # dangling symlink, so remove it first, then drop a real resolver file in.
+  rm -f "${d}/etc/resolv.conf"
+  mkdir -p "${d}/etc"
+  if ! cp -Lf /etc/resolv.conf "${d}/etc/resolv.conf" 2>/dev/null \
+     || ! grep -q '^nameserver' "${d}/etc/resolv.conf" 2>/dev/null; then
+    printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\n' > "${d}/etc/resolv.conf"
+  fi
 }
 chroot_umount() {
   local m

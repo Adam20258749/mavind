@@ -1,36 +1,25 @@
 # Mavind COMPATIBILITY tier — Windows application support (Wine).
-# Adds ~500 MB installed. Included by `--profile compat` (default) and `full`.
-# Requires i386 multiarch (stage 00 enables it before installing these).
+# Included by `--profile compat` (default) and `full`. Stage 00 enables i386
+# multiarch before installing these.
+#
+# Keep this list SHORT and let apt resolve dependencies: `wine` + `wine32:i386`
+# pull the correct i386 X/GL/glibc libraries automatically. Hand-listing every
+# ":i386" lib breaks on Debian's t64 renames.
 
-# --- Wine (64 + 32 bit) ----------------------------------------------
 wine
 wine64
 wine32:i386
-libwine:amd64
-libwine:i386
-
-# --- installer / redistributable helpers -----------------------------
 winetricks
 cabextract
 p7zip-full
 unzip
 
-# --- X apps under Wine --------------------------------------------
+# X apps under Wine
 xwayland
 
-# --- Vulkan (for DXVK / VKD3D-Proton, both optional at runtime) -----
-mesa-vulkan-drivers:i386
-libvulkan1:i386
+# Vulkan for DXVK / VKD3D-Proton (64-bit; 32-bit ICDs added by `mavind-wine dxvk`)
+mesa-vulkan-drivers
 vulkan-tools
 
-# --- 32-bit GL for older D3D via WineD3D -------------------------
-libgl1-mesa-dri:i386
-libglx-mesa0:i386
-
-# --- fonts Windows apps expect --------------------------------
+# fonts Windows apps expect
 fonts-liberation
-fonts-wine
-
-# --- NTLM / networking bits some installers need --------------
-winbind
-libgnutls30:i386

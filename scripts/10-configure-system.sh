@@ -50,13 +50,17 @@ in_chroot "${ROOTFS}" bash -c '
   set -e
   passwd -l root || true
   if ! id mavind >/dev/null 2>&1; then
-    useradd --create-home --shell /bin/bash \
-      --groups sudo,audio,video,input,render,netdev,plugdev,bluetooth mavind
+    useradd --create-home --shell /bin/bash mavind
   fi
+  # add to whatever optional groups actually exist (some are package-created)
+  for g in sudo audio video input render netdev plugdev bluetooth lp scanner; do
+    getent group "$g" >/dev/null 2>&1 && usermod -aG "$g" mavind || true
+  done
   echo "mavind:mavind" | chpasswd
   install -d -m0750 -o mavind -g mavind /home/mavind
   # passwordless sudo for the live session only; installer removes this file
-  install -Dm440 /dev/stdin /etc/sudoers.d/90-mavind-live <<<"mavind ALL=(ALL) NOPASSWD: ALL"
+  printf "mavind ALL=(ALL) NOPASSWD: ALL\n" > /etc/sudoers.d/90-mavind-live
+  chmod 0440 /etc/sudoers.d/90-mavind-live
 '
 
 # ---------------------------------------------------------------------------
