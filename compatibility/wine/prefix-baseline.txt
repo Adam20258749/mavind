@@ -1,0 +1,12 @@
+# winetricks verbs applied to every new Mavind Wine prefix.
+# Keep this SHORT — each verb is download time + disk in the user's prefix.
+# Lines starting with '#' and blank lines are ignored.
+
+# no "application crashed" nag, no debugger popups
+nocrashdialog
+
+# the fonts the largest share of installers assume exist
+corefonts
+
+# almost every modern .exe links one of these
+vcrun2019

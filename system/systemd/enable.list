@@ -1,0 +1,12 @@
+# Units Mavind explicitly enables. (Most are enabled by their package; listing
+# them makes the intent auditable and survives package default changes.)
+
+NetworkManager.service
+iwd.service
+bluetooth.service
+systemd-timesyncd.service
+systemd-resolved.service
+systemd-oomd.service
+seatd.service
+greetd.service
+mavind-firstboot.service

@@ -1,0 +1,13 @@
+NAME="Mavind"
+PRETTY_NAME="Mavind"
+ID=mavind
+ID_LIKE=debian
+VERSION="0.1.0 (Phase 1)"
+VERSION_ID="0.1.0"
+VERSION_CODENAME=phase1
+HOME_URL="https://github.com/mavind-os/mavind"
+DOCUMENTATION_URL="https://github.com/mavind-os/mavind/tree/main/docs"
+SUPPORT_URL="https://github.com/mavind-os/mavind/issues"
+BUG_REPORT_URL="https://github.com/mavind-os/mavind/issues"
+ANSI_COLOR="1;35"
+LOGO=mavind

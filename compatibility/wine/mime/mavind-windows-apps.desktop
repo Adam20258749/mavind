@@ -1,0 +1,18 @@
+[Desktop Entry]
+Type=Application
+Name=Mavind Windows Apps
+GenericName=Windows Application Support
+Comment=Install and run Windows programs with Wine
+Exec=mavind-windows-apps %f
+Icon=mavind-windows-apps
+Terminal=false
+Categories=System;Utility;Wine;
+MimeType=application/x-ms-dos-executable;application/x-msi;application/vnd.microsoft.portable-executable;
+StartupNotify=true
+Keywords=windows;exe;msi;wine;program;install;
+
+Actions=install-isolated;
+
+[Desktop Action install-isolated]
+Name=Install in isolated prefix
+Exec=foot -e mavind-wine install --isolated %f

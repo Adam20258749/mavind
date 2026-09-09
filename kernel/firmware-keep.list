@@ -1,0 +1,52 @@
+# Firmware globs to KEEP (relative to /usr/lib/firmware). Stage 30 deletes the rest.
+# Patterns are shell globs matched with `find -path "./<glob>"`.
+# Goal: cover common laptop/desktop Wi-Fi + GPU + audio-DSP for 2010–2022 hardware.
+
+# --- regulatory (Wi-Fi channels) — MANDATORY ---------------------------
+regulatory.db
+regulatory.db.p7s
+
+# --- Intel Wi-Fi (iwlwifi) — the big one for old ThinkPads/Dells ------
+iwlwifi-*.ucode
+intel/ibt-*                # Intel Bluetooth
+
+# --- Realtek Wi-Fi / BT ------------------------------------------------
+rtlwifi/*
+rtw88/*
+rtw89/*
+rtl_bt/*
+rtl_nic/*                  # Realtek wired NICs (r8169)
+
+# --- Atheros / Qualcomm ---------------------------------------------
+ath9k_htc/*
+ath10k/*
+ath11k/*
+ar3k/*
+qca/*
+
+# --- Broadcom ----------------------------------------------------
+brcm/brcmfmac*
+cypress/*
+
+# --- MediaTek (common in cheap 2019+ laptops) --------------------
+mediatek/*
+mt7601u.bin
+mt7650.bin
+
+# --- GPU: Intel i915 / AMD amdgpu+radeon (KMS needs these) ------
+i915/*
+amdgpu/*
+radeon/*
+# (nouveau firmware is in linux-firmware 'nvidia/*' — add if you target NVIDIA)
+nvidia/*
+
+# --- Intel audio DSP (SOF/SST) — many 2018+ laptops are silent without
+sof/*
+sof-tplg/*
+intel/sst/*
+intel/dsp_fw*
+
+# --- misc but tiny / widely needed -----------------------------
+rtl_nic/*
+tigon/*                    # Broadcom wired
+e100/*

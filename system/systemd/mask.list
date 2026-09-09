@@ -1,0 +1,38 @@
+# Units Mavind masks — never run these. RAM + boot-time savings (docs/RAM-BUDGET.md).
+# Missing units are ignored (stage 10 warns, doesn't fail).
+
+# online-wait units add seconds to boot for no desktop benefit
+NetworkManager-wait-online.service
+systemd-networkd-wait-online.service
+
+# we use NetworkManager, not networkd
+systemd-networkd.service
+systemd-networkd.socket
+
+# periodic apt / docs / locate — user-initiated updates only (spec §9, §16)
+apt-daily.service
+apt-daily.timer
+apt-daily-upgrade.service
+apt-daily-upgrade.timer
+man-db.timer
+plocate-updatedb.timer
+e2scrub_all.timer
+e2scrub_all.service
+fstrim.timer
+
+# services for hardware/use-cases the base image doesn't target
+ModemManager.service
+avahi-daemon.service
+avahi-daemon.socket
+cups.service
+cups.socket
+cups-browsed.service
+packagekit.service
+fwupd.service
+fwupd-refresh.timer
+unattended-upgrades.service
+rsyslog.service
+systemd-journald-audit.socket
+
+# no remote login in the base image
+ssh.service

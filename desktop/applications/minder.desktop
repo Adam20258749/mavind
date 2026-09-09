@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Minder
+GenericName=File Manager
+Comment=Browse files and drives
+Exec=minder %U
+Icon=minder
+Terminal=false
+Categories=System;FileManager;Utility;
+MimeType=inode/directory;
+StartupNotify=true
+Keywords=files;folders;browser;disk;usb;

@@ -1,0 +1,14 @@
+# Mavind is a Linux OS: every shipped text file must have LF line endings even
+# when checked out on Windows.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary
+*.pf2 binary
+*.img binary
+*.iso binary
+*.squashfs binary
+*.tar binary
+*.gz binary
+*.zst binary

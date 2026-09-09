@@ -1,0 +1,22 @@
+[package]
+name = "mavind-system-monitor"
+description = "Real RAM / CPU / disk / process monitor for Mavind (no synthetic data)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "mavind-system-monitor"
+path = "src/main.rs"
+
+[dependencies]
+gtk4 = { version = "0.9", features = ["v4_10"] }
+glib = "0.20"
+libc.workspace = true
+anyhow.workspace = true
+
+[lints.rust]
+unsafe_code = "allow"   # one statvfs() FFI call, marked SAFETY

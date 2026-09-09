@@ -1,0 +1,36 @@
+# Mavind OPTIONAL tier — never in the base ISO. Installed later with `mpk install`,
+# or baked in with `--profile full` (uncomment the ones you want).
+#
+# Format: package  [# note]. Commented lines are NOT installed by `full`.
+
+# --- Mrowser (web browser) — pick ONE backend --------------------------
+# epiphany-browser        # WebKitGTK, lightest, matches the GTK look (~180 MB)
+# firefox-esr             # full-featured (~250 MB)
+
+# --- desktop portals (screen share, sandboxed file dialogs) ----------
+# xdg-desktop-portal
+# xdg-desktop-portal-gtk
+# xdg-desktop-portal-wlr
+
+# --- small apps -----------------------------------------------------
+# gnome-text-editor       # Text Editor
+# galculator              # Calculator (GTK3, tiny)
+# mpv                     # media player
+# eog                     # image viewer
+
+# --- more hardware coverage --------------------------------------
+# firmware-linux          # full non-free firmware set (+~200 MB)
+# firmware-sof-signed     # Intel SOF audio DSP (many 2018+ laptops)
+# xserver-xorg-video-all  # legacy X drivers
+
+# --- dual boot ---------------------------------------------------
+# os-prober
+
+# --- Wine extras -----------------------------------------------
+# gstreamer1.0-libav      # media playback inside Wine apps
+# gstreamer1.0-plugins-good
+# q4wine                  # alternative Wine GUI
+
+# --- dev (kept OUT of the OS by policy; for a dev spin only) --------
+# build-essential
+# git

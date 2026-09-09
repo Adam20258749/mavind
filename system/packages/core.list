@@ -1,0 +1,115 @@
+# Mavind CORE package tier — everything required to boot to the desktop.
+# Debian trixie names. One package per line. '#' comments and blank lines ignored.
+# Stage 30 strips docs/locales/firmware from whatever these pull in.
+
+# --- kernel + boot ---------------------------------------------------------
+linux-image-amd64
+initramfs-tools
+live-boot
+live-boot-initramfs-tools
+zstd
+firmware-linux-free
+wireless-regdb
+
+# common Wi-Fi / GPU firmware (trimmed to a whitelist in stage 30)
+firmware-iwlwifi
+firmware-realtek
+firmware-atheros
+firmware-mediatek
+firmware-brcm80211
+firmware-misc-nonfree
+
+# --- init / session core -------------------------------------------------
+systemd
+systemd-sysv
+systemd-timesyncd
+systemd-resolved
+udev
+dbus
+dbus-broker
+dbus-user-session
+libpam-systemd
+polkitd
+zram-tools
+sudo
+nano
+less
+file
+ca-certificates
+locales
+tzdata
+console-setup
+kbd
+
+# --- hardware / diagnostics -------------------------------------------
+pciutils
+usbutils
+psmisc
+lm-sensors
+util-linux
+parted
+gdisk
+e2fsprogs
+dosfstools
+udisks2
+
+# --- networking --------------------------------------------------------
+network-manager
+iwd
+wpasupplicant
+iproute2
+iputils-ping
+netbase
+
+# --- audio -----------------------------------------------------------
+pipewire
+pipewire-pulse
+pipewire-alsa
+wireplumber
+libspa-0.2-bluetooth
+
+# --- bluetooth -----------------------------------------------------
+bluez
+
+# --- graphics stack ----------------------------------------------
+libgl1-mesa-dri
+libglx-mesa0
+libegl1
+libgles2
+libvulkan1
+mesa-vulkan-drivers
+libwayland-client0
+libwayland-server0
+libwayland-egl1
+seatd
+
+# --- desktop: compositor + helpers --------------------------------
+labwc
+foot
+wofi
+mako-notifier
+swaybg
+swayidle
+swaylock
+wl-clipboard
+wlr-randr
+grim
+slurp
+brightnessctl
+playerctl
+greetd
+
+# --- toolkit + theme (shared by all Mavind apps) -----------------
+libgtk-4-1
+libgtk4-layer-shell0
+libadwaita-1-0
+adwaita-icon-theme
+fonts-dejavu-core
+
+# --- bootloader tooling for the installer ----------------------
+grub2-common
+grub-efi-amd64-bin
+grub-pc-bin
+squashfs-tools
+rsync
+dialog

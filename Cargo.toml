@@ -1,0 +1,35 @@
+# Mavind component workspace.
+# All Mavind-authored GUI/CLI programs live here so they share one lockfile,
+# one dependency graph, and one `cargo build --release`.
+[workspace]
+resolver = "2"
+members = [
+    "desktop/mavind-shell",
+    "apps/system-monitor",
+    "apps/windows-apps",
+    "apps/minder",
+    "apps/settings",
+    "packages/mpk",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "MIT"
+repository = "https://github.com/mavind-os/mavind"
+authors = ["Mavind contributors"]
+
+[workspace.dependencies]
+# Keep this list short. Every dependency is disk space in the ISO.
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+libc = "0.2"
+
+[profile.release]
+opt-level = "z"      # optimize for size — this is a tiny OS
+lto = true
+codegen-units = 1
+panic = "abort"      # no unwinding tables
+strip = true         # strip symbols at link time

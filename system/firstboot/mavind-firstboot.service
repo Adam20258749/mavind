@@ -1,0 +1,15 @@
+[Unit]
+Description=Mavind first-boot setup
+DefaultDependencies=no
+After=local-fs.target
+Before=basic.target multi-user.target graphical.target
+ConditionPathExists=!/var/lib/mavind/.firstboot-done
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/mavind/firstboot.sh
+RemainAfterExit=yes
+StandardOutput=journal+console
+
+[Install]
+WantedBy=basic.target

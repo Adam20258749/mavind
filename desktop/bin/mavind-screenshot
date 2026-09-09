@@ -1,0 +1,24 @@
+#!/bin/sh
+# Mavind screenshot helper. `grim` for full screen, `grim -g "$(slurp)"` for a region.
+set -eu
+DIR="${XDG_PICTURES_DIR:-$HOME/Pictures}"
+mkdir -p "$DIR"
+OUT="$DIR/screenshot-$(date +%Y%m%d-%H%M%S).png"
+
+case "${1:-}" in
+    --region|-r)
+        geom=$(slurp) || exit 0
+        grim -g "$geom" "$OUT"
+        ;;
+    *)
+        grim "$OUT"
+        ;;
+esac
+
+if command -v wl-copy >/dev/null 2>&1; then
+    wl-copy < "$OUT" --type image/png 2>/dev/null || true
+fi
+if command -v notify-send >/dev/null 2>&1; then
+    notify-send "Screenshot saved" "$OUT" -i "$OUT" -t 4000
+fi
+echo "$OUT"

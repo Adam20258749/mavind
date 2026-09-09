@@ -1,0 +1,5 @@
+# labwc environment file — extra vars for the compositor and its children.
+XCURSOR_THEME=Adwaita
+XCURSOR_SIZE=24
+# Server-side decorations so Windows apps under Wine get real title bars.
+# (labwc default is SSD; kept explicit.)

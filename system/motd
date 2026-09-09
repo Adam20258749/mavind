@@ -1,0 +1,10 @@
+
+Mavind — ultra-lightweight Windows-app OS
+
+  mavind-wine install <file.exe>     install a Windows program
+  mavind-wine list                   installed Windows programs
+  mavind-system-monitor              real RAM / CPU / disk / processes
+  mpk install <pkg>                  add an optional component
+  mavind-settings                    system settings
+
+Docs: /usr/share/doc is stripped by design — see github.com/mavind-os/mavind

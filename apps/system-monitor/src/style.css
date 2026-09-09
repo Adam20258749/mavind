@@ -1,0 +1,11 @@
+window { background-color: #1c1c22; color: #e6e6ec; }
+.dim { color: #9a9aa6; font-size: 11px; }
+.section { font-weight: bold; margin-top: 6px; color: #b08cf6; }
+.th { color: #8a8a96; font-size: 10px; font-weight: bold; }
+.th-row { border-bottom: 1px solid #2a2a33; padding-bottom: 2px; }
+.procs row { padding: 1px 0; }
+.procs label { font-family: monospace; font-size: 11px; }
+levelbar block.filled { background-color: #6ea8fe; }
+levelbar block.filled.low { background-color: #e0c081; }
+levelbar block.filled.high { background-color: #ff5c6c; }
+levelbar trough { background-color: #2a2a33; min-height: 10px; border-radius: 4px; }

@@ -1,0 +1,26 @@
+// Mavind polkit rules — let the desktop user do normal laptop things without
+// a password prompt, but keep package/admin actions authenticated.
+polkit.addRule(function(action, subject) {
+    if (!subject.isInGroup("sudo")) return polkit.Result.NOT_HANDLED;
+
+    var allow = {
+        // removable media (Minder)
+        "org.freedesktop.udisks2.filesystem-mount": 1,
+        "org.freedesktop.udisks2.filesystem-mount-system": 1,
+        "org.freedesktop.udisks2.eject-media": 1,
+        "org.freedesktop.udisks2.power-off-drive": 1,
+        // network (Settings > Network, tray)
+        "org.freedesktop.NetworkManager.network-control": 1,
+        "org.freedesktop.NetworkManager.enable-disable-wifi": 1,
+        "org.freedesktop.NetworkManager.settings.modify.own": 1,
+        "org.freedesktop.NetworkManager.settings.modify.system": 1,
+        // power (shell menu)
+        "org.freedesktop.login1.suspend": 1,
+        "org.freedesktop.login1.reboot": 1,
+        "org.freedesktop.login1.power-off": 1,
+        // timezone (Settings)
+        "org.freedesktop.timedate1.set-timezone": 1
+    };
+    if (allow[action.id]) return polkit.Result.YES;
+    return polkit.Result.NOT_HANDLED;
+});

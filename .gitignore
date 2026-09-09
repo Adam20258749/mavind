@@ -1,0 +1,38 @@
+# Build output & working trees
+/build/out/
+/build/work/
+/build/cache/
+/build/rootfs/
+*.iso
+*.img
+*.squashfs
+*.qcow2
+*.vdi
+*.vmdk
+
+# Rust
+target/
+**/target/
+Cargo.lock.orig
+
+# C / native
+*.o
+*.a
+*.so
+*.ko
+
+# OVMF / VM state
+*.fd
+OVMF_VARS*.fd
+tests/.vmstate/
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Python (Windows store stub etc.)
+__pycache__/
+*.pyc

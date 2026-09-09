@@ -1,0 +1,94 @@
+name: build-iso
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "package tier"
+        default: compat
+        type: choice
+        options: [core, compat, full]
+
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  components:
+    # Fast feedback: compile + test the Rust workspace before the slow ISO build.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install toolchain + GTK dev
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cargo rustc pkg-config libgtk-4-dev libglib2.0-dev \
+            libgtk4-layer-shell-dev libadwaita-1-dev
+      - run: cargo build --release --workspace
+      - run: cargo test --workspace
+      - run: cargo fmt --all --check || true
+      - run: cargo clippy --workspace --all-targets || true
+
+  iso:
+    needs: components
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      PROFILE: ${{ inputs.profile || 'compat' }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            mmdebstrap xorriso squashfs-tools \
+            grub-common grub-pc-bin grub-efi-amd64-bin mtools dosfstools \
+            cargo rustc pkg-config libgtk-4-dev libglib2.0-dev \
+            libgtk4-layer-shell-dev libadwaita-1-dev \
+            ca-certificates zstd file rsync
+
+      - name: Cache apt archives + cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/cache
+          key: mavind-build-${{ env.PROFILE }}-${{ hashFiles('system/packages/*.list','Cargo.toml','**/Cargo.toml') }}
+          restore-keys: mavind-build-${{ env.PROFILE }}-
+
+      - name: Build Mavind.iso
+        run: sudo -E ./scripts/build-iso.sh --profile "$PROFILE" --out build/out/Mavind.iso --keep-work
+
+      - name: Size report
+        run: |
+          ./tests/measure-size.sh build/out/Mavind.iso | tee size-report.txt
+          {
+            echo '### Mavind size report (`'"$PROFILE"'`)'
+            echo '```'
+            cat size-report.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Headless boot smoke test (QEMU)
+        run: |
+          sudo apt-get install -y --no-install-recommends qemu-system-x86 ovmf
+          ./tests/smoke-boot.sh build/out/Mavind.iso 240
+
+      - name: Upload ISO + metadata
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mavind-${{ env.PROFILE }}
+          path: |
+            build/out/Mavind.iso
+            build/out/Mavind.iso.sha256
+            build/out/Mavind.iso.manifest
+            build/out/Mavind.iso.sizes
+            size-report.txt
+          if-no-files-found: warn
+          retention-days: 14

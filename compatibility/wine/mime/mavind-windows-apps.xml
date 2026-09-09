@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <!-- Ensure Windows executables/installers have a stable MIME type so file
+       managers offer "Open with Mavind Windows Apps". -->
+  <mime-type type="application/x-ms-dos-executable">
+    <comment>Windows program</comment>
+    <glob pattern="*.exe"/>
+    <magic priority="60"><match type="string" offset="0" value="MZ"/></magic>
+  </mime-type>
+  <mime-type type="application/x-msi">
+    <comment>Windows installer package</comment>
+    <glob pattern="*.msi"/>
+    <sub-class-of type="application/x-ole-storage"/>
+  </mime-type>
+  <mime-type type="application/vnd.microsoft.portable-executable">
+    <comment>Windows program (PE)</comment>
+    <glob pattern="*.exe"/>
+  </mime-type>
+</mime-info>

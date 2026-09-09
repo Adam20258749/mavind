@@ -1,0 +1,17 @@
+# mako notification daemon — Mavind defaults (small, unobtrusive).
+font=sans-serif 10
+background-color=#1c1c22ee
+text-color=#e6e6ec
+border-color=#8a5cf6ff
+border-size=1
+border-radius=8
+padding=10
+margin=10
+default-timeout=5000
+max-visible=4
+anchor=top-right
+layer=overlay
+
+[urgency=critical]
+border-color=#ff5c6c
+default-timeout=0

@@ -1,0 +1,149 @@
+#!/bin/bash
+# Mavind installer — copies the running live system onto a disk.
+# Intentionally small: GPT + ESP + one ext4 root, GRUB (UEFI or BIOS), one user.
+#
+#   sudo mavind-install            # interactive (dialog)
+#   sudo mavind-install --unattended --disk /dev/sda --user me --hostname box
+#
+set -euo pipefail
+
+SQUASH=/run/live/medium/live/filesystem.squashfs
+[ -f "$SQUASH" ] || SQUASH=/lib/live/mount/medium/live/filesystem.squashfs
+ROOTMNT=/mnt/target
+ESP_MB=512
+
+die() { echo "mavind-install: $*" >&2; exit 1; }
+[ "$(id -u)" -eq 0 ] || die "run as root"
+[ -f "$SQUASH" ] || die "cannot find the live squashfs (are you booted from the Mavind ISO?)"
+
+UNATTENDED=0 DISK="" USERNAME="" HOSTNAME="mavind" FULLNAME="Mavind User"
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --unattended) UNATTENDED=1; shift;;
+    --disk) DISK="$2"; shift 2;;
+    --user) USERNAME="$2"; shift 2;;
+    --hostname) HOSTNAME="$2"; shift 2;;
+    *) die "unknown arg: $1";;
+  esac
+done
+
+have_dialog() { command -v dialog >/dev/null 2>&1; }
+ask() { # prompt default -> echo value
+  local p="$1" d="${2:-}"
+  if [ "$UNATTENDED" = 1 ] || ! have_dialog; then
+    read -r -p "$p [$d]: " a || true; echo "${a:-$d}"
+  else
+    dialog --stdout --inputbox "$p" 8 60 "$d"
+  fi
+}
+
+firmware_mode() { [ -d /sys/firmware/efi ] && echo uefi || echo bios; }
+
+pick_disk() {
+  local disks; disks=$(lsblk -dnp -o NAME,SIZE,MODEL -e 7,11 | grep -v loop || true)
+  [ -n "$disks" ] || die "no disks found"
+  if [ -n "$DISK" ]; then echo "$DISK"; return; fi
+  if [ "$UNATTENDED" = 1 ] || ! have_dialog; then
+    echo "Available disks:"; echo "$disks"
+    read -r -p "Target disk (e.g. /dev/sda): " d; echo "$d"
+  else
+    local menu=(); while read -r n s m; do menu+=("$n" "$s $m"); done <<<"$disks"
+    dialog --stdout --menu "Select the target disk. ALL DATA ON IT WILL BE ERASED." 16 70 8 "${menu[@]}"
+  fi
+}
+
+main() {
+  local fw; fw=$(firmware_mode)
+  echo "Firmware: $fw"
+  DISK=$(pick_disk); [ -b "$DISK" ] || die "not a block device: $DISK"
+  [ -n "$USERNAME" ] || USERNAME=$(ask "Username" "mavind")
+  HOSTNAME=$(ask "Hostname" "$HOSTNAME")
+  local PASS PASS2
+  if [ "$UNATTENDED" = 1 ]; then PASS="mavind"; else
+    PASS=$(dialog --stdout --insecure --passwordbox "Password for $USERNAME" 8 50 || true)
+    PASS2=$(dialog --stdout --insecure --passwordbox "Repeat password" 8 50 || true)
+    [ "$PASS" = "$PASS2" ] || die "passwords did not match"
+  fi
+  [ -n "$PASS" ] || die "empty password"
+
+  echo
+  echo "About to ERASE $DISK and install Mavind ($fw). This cannot be undone."
+  if [ "$UNATTENDED" != 1 ]; then read -r -p "Type YES to continue: " c; [ "$c" = YES ] || die "aborted"; fi
+
+  echo "==> partitioning $DISK"
+  wipefs -a "$DISK"
+  sgdisk --zap-all "$DISK"
+  sgdisk -n1:0:+${ESP_MB}M -t1:ef00 -c1:"MAVIND-ESP" "$DISK"
+  sgdisk -n2:0:0          -t2:8300 -c2:"MAVIND-ROOT" "$DISK"
+  partprobe "$DISK"; sleep 1
+  local P1 P2
+  case "$DISK" in *[0-9]) P1="${DISK}p1"; P2="${DISK}p2";; *) P1="${DISK}1"; P2="${DISK}2";; esac
+
+  echo "==> formatting"
+  mkfs.vfat -F32 -n MAVIND-ESP "$P1"
+  mkfs.ext4 -F -L MAVIND-ROOT "$P2"
+
+  echo "==> mounting"
+  mkdir -p "$ROOTMNT"
+  mount "$P2" "$ROOTMNT"
+  mkdir -p "$ROOTMNT/boot/efi"
+  mount "$P1" "$ROOTMNT/boot/efi"
+
+  echo "==> copying system (unsquashfs)"
+  unsquashfs -f -d "$ROOTMNT" "$SQUASH"
+
+  echo "==> fstab"
+  local RUUID EUUID
+  RUUID=$(blkid -s UUID -o value "$P2"); EUUID=$(blkid -s UUID -o value "$P1")
+  cat > "$ROOTMNT/etc/fstab" <<EOF
+UUID=$RUUID  /          ext4  defaults,noatime  0 1
+UUID=$EUUID  /boot/efi  vfat  umask=0077        0 2
+EOF
+
+  echo "==> configuring target"
+  for d in dev proc sys run; do mount --rbind "/$d" "$ROOTMNT/$d"; done
+  cp -f /etc/resolv.conf "$ROOTMNT/etc/resolv.conf" || true
+
+  chroot "$ROOTMNT" /bin/bash -euo pipefail <<CHROOT
+echo "$HOSTNAME" > /etc/hostname
+sed -i "s/127.0.1.1.*/127.0.1.1\t$HOSTNAME/" /etc/hosts || true
+
+# real user, remove the live conveniences
+if ! id "$USERNAME" >/dev/null 2>&1; then
+  useradd --create-home --shell /bin/bash \
+    --groups sudo,audio,video,input,render,netdev,plugdev,bluetooth "$USERNAME"
+fi
+echo "$USERNAME:$PASS" | chpasswd
+id mavind >/dev/null 2>&1 && [ "$USERNAME" != mavind ] && deluser --remove-home mavind || true
+rm -f /etc/sudoers.d/90-mavind-live
+rm -f /etc/systemd/system/getty@tty1.service.d/autologin.conf
+
+# greetd for a normal login
+systemctl enable greetd.service || true
+
+# regenerate identity on next boot
+: > /etc/machine-id
+rm -f /var/lib/mavind/.firstboot-done
+CHROOT
+
+  echo "==> installing GRUB ($fw)"
+  if [ "$fw" = uefi ]; then
+    chroot "$ROOTMNT" apt-get -y install --no-install-recommends grub-efi-amd64 || true
+    chroot "$ROOTMNT" grub-install --target=x86_64-efi --efi-directory=/boot/efi \
+      --bootloader-id=Mavind --recheck
+  else
+    chroot "$ROOTMNT" apt-get -y install --no-install-recommends grub-pc || true
+    chroot "$ROOTMNT" grub-install --target=i386-pc --recheck "$DISK"
+  fi
+  chroot "$ROOTMNT" update-grub
+
+  echo "==> cleanup"
+  sync
+  for d in dev/pts dev proc sys run; do umount -lR "$ROOTMNT/$d" 2>/dev/null || true; done
+  umount -R "$ROOTMNT" 2>/dev/null || true
+
+  echo
+  echo "Mavind is installed on $DISK. Remove the installation medium and reboot."
+}
+
+main

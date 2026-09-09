@@ -1,0 +1,20 @@
+# Local Windows-app compatibility hints. TAB-separated: name<TAB>verdict<TAB>note
+# verdict: good | ok | poor | broken | unknown
+# Matched as a case-insensitive substring against the file/app name.
+# This is a small curated seed, NOT a mirror of any third-party database.
+Notepad++	good	Installer and app both work out of the box.
+7-Zip	good	Works fully; use the .exe installer.
+IrfanView	good	Works; associate file types inside the app.
+Paint.NET	ok	Needs dotnet48 via winetricks; slow first launch.
+VLC	ok	Works but the native Linux VLC (mpk install vlc) is lighter.
+Sumatra PDF	good	Portable build runs with no setup.
+Foobar2000	good	Works well for audio playback.
+WinRAR	good	Fully functional including shell prompts.
+Steam	poor	Installs but is heavy; games vary wildly. Not recommended on 2 GB RAM.
+iTunes	broken	Does not run on current Wine.
+Adobe Photoshop	poor	Old versions (CS6) partial; modern CC does not work.
+Microsoft Office	poor	2010 mostly works with tricks; 2016+ unreliable.
+.NET Framework	ok	Prefer winetricks dotnet* verbs over vendor installers.
+DirectX	ok	Use winetricks d3dcompiler_47 / dxvk instead of the redist.
+PuTTY	good	Works; native openssh is usually enough though.
+Git for Windows	poor	Use the native git package instead.

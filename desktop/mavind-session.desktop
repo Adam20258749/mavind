@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=Mavind
+Comment=Ultra-lightweight Windows-app desktop
+Exec=/usr/bin/mavind-session
+Type=Application
+DesktopNames=Mavind

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=System Monitor
+GenericName=Task Manager
+Comment=Real RAM, CPU, disk and process usage
+Exec=mavind-system-monitor
+Icon=mavind-system-monitor
+Terminal=false
+Categories=System;Monitor;Utility;
+StartupNotify=true
+Keywords=task;process;ram;memory;cpu;disk;performance;

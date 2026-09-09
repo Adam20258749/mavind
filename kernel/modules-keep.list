@@ -1,0 +1,45 @@
+# Kernel modules to KEEP when building with `--aggressive`.
+# prune-modules.sh resolves dependencies automatically, and always keeps a
+# hard-coded boot-critical set (storage/usb/virtio/fs) on top of this list.
+# A trailing '*' globs. '#' comments ok.
+
+# --- filesystems ---------------------------------------------------
+ext4 vfat exfat ntfs3 btrfs xfs f2fs isofs udf overlay squashfs fuse nls_*
+
+# --- block / storage ------------------------------------------
+nvme* ahci libahci sd_mod sr_mod cdrom mmc_block sdhci sdhci-pci sdhci-acpi
+ata_piix ata_generic pata_* sata_* usb-storage uas virtio_blk virtio_scsi
+
+# --- USB / input / HID -------------------------------------
+xhci_* ehci_* ohci_* uhci_* usbhid hid_* i2c_hid* psmouse atkbd i8042
+evdev joydev uinput
+
+# --- GPU / DRM -----------------------------------------------
+i915 amdgpu radeon nouveau drm drm_kms_helper ttm cec
+virtio_gpu bochs vmwgfx qxl simpledrm
+
+# --- networking: wired -----------------------------------
+e1000 e1000e igb igc r8169 tg3 atl1c alx via_rhine sky2 8139too 8139cp
+
+# --- networking: wireless -----------------------------
+cfg80211 mac80211 iwlwifi iwldvm iwlmvm
+rtlwifi rtl8192* rtl8188* rtw88* rtw89* rtl8xxxu
+ath ath9k* ath10k* ath11k* brcmfmac brcmutil b43 ssb
+mt76* mt7601u mwifiex*
+rndis_host cdc_ether cdc_ncm r8152 asix ax88179_178a
+
+# --- bluetooth ------------------------------------------
+bluetooth btusb btrtl btintel btbcm btmtk hci_uart rfcomm bnep
+
+# --- sound (PipeWire needs ALSA modules) ---------------
+snd snd_pcm snd_timer snd_hda_intel snd_hda_codec* snd_sof* snd_soc*
+snd_usb_audio soundcore snd_seq*
+
+# --- laptop / ACPI / power ----------------------------
+thermal thermal_sys processor_thermal_device intel_rapl_* coretemp
+ac battery button video wmi *_wmi acpi_* rfkill
+intel_pstate acpi_cpufreq
+
+# --- crypto / misc --------------------------------------
+crc* crypto_* aesni_intel af_alg algif_* dm_mod dm_crypt zram zsmalloc
+loop nbd zstd* lz4* efivarfs efi_pstore

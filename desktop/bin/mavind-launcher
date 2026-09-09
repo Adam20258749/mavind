@@ -1,0 +1,12 @@
+#!/bin/sh
+# Mavind application launcher. Thin wrapper over wofi's drun mode so the base
+# system has no bespoke launcher to maintain. mavind-shell's launcher button
+# and Super+Space both call this.
+exec wofi \
+    --show drun \
+    --allow-images \
+    --insensitive \
+    --prompt "Search apps" \
+    --width 480 --height 520 \
+    --cache-file "${XDG_CACHE_HOME:-$HOME/.cache}/mavind-launcher.cache" \
+    "$@"

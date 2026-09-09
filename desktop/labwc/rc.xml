@@ -1,0 +1,79 @@
+<?xml version="1.0"?>
+<!-- Mavind labwc config. Stacking/floating WM so Windows apps behave.
+     System default; a user copy in ~/.config/labwc/rc.xml overrides it. -->
+<labwc_config>
+  <core>
+    <decoration>server</decoration>
+    <gap>4</gap>
+    <adaptiveSync>no</adaptiveSync>
+    <reuseOutputMode>yes</reuseOutputMode>
+  </core>
+
+  <theme>
+    <name>Adwaita-Dark</name>
+    <cornerRadius>8</cornerRadius>
+    <font place="ActiveWindow"><name>sans</name><size>10</size></font>
+    <font place="MenuItem"><name>sans</name><size>10</size></font>
+    <dropShadows>yes</dropShadows>
+  </theme>
+
+  <!-- No animations. Effects stay off by default (spec §6). -->
+  <animations>
+    <enabled>no</enabled>
+  </animations>
+
+  <placement>
+    <policy>cascade</policy>
+  </placement>
+
+  <focus>
+    <followMouse>no</followMouse>
+    <raiseOnFocus>yes</raiseOnFocus>
+  </focus>
+
+  <resize>
+    <popupShow>Never</popupShow>
+  </resize>
+
+  <!-- Panel lives on the bottom; reserve 40px so windows don't cover it. -->
+  <margin><bottom>0</bottom></margin>
+
+  <keyboard>
+    <default />
+    <keybind key="W-Return"><action name="Execute" command="foot" /></keybind>
+    <keybind key="W-e"><action name="Execute" command="minder" /></keybind>
+    <keybind key="W-d"><action name="Execute" command="mavind-launcher" /></keybind>
+    <keybind key="W-Space"><action name="Execute" command="mavind-launcher" /></keybind>
+    <keybind key="A-F2"><action name="Execute" command="mavind-launcher" /></keybind>
+    <keybind key="W-q"><action name="Close" /></keybind>
+    <keybind key="A-F4"><action name="Close" /></keybind>
+    <keybind key="W-Up"><action name="ToggleMaximize" /></keybind>
+    <keybind key="W-Left"><action name="SnapToEdge" direction="left" /></keybind>
+    <keybind key="W-Right"><action name="SnapToEdge" direction="right" /></keybind>
+    <keybind key="W-Tab"><action name="NextWindow" /></keybind>
+    <keybind key="A-Tab"><action name="NextWindow" /></keybind>
+    <keybind key="Print"><action name="Execute" command="mavind-screenshot" /></keybind>
+    <keybind key="S-Print"><action name="Execute" command="mavind-screenshot --region" /></keybind>
+    <keybind key="XF86AudioRaiseVolume"><action name="Execute" command="wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+" /></keybind>
+    <keybind key="XF86AudioLowerVolume"><action name="Execute" command="wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-" /></keybind>
+    <keybind key="XF86AudioMute"><action name="Execute" command="wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle" /></keybind>
+    <keybind key="XF86MonBrightnessUp"><action name="Execute" command="brightnessctl set 5%+" /></keybind>
+    <keybind key="XF86MonBrightnessDown"><action name="Execute" command="brightnessctl set 5%-" /></keybind>
+  </keyboard>
+
+  <mouse>
+    <context name="Root">
+      <mousebind button="Right" action="Press"><action name="ShowMenu" menu="root-menu" /></mousebind>
+      <mousebind button="Middle" action="Press"><action name="ShowMenu" menu="client-list-combined-menu" /></mousebind>
+    </context>
+    <context name="TitleBar">
+      <mousebind button="Left" action="DoubleClick"><action name="ToggleMaximize" /></mousebind>
+    </context>
+  </mouse>
+
+  <windowRules>
+    <!-- Wine apps: float, honour their own geometry -->
+    <windowRule identifier="*.exe"    serverDecoration="default" />
+    <windowRule identifier="explorer.exe" skipTaskbar="no" />
+  </windowRules>
+</labwc_config>

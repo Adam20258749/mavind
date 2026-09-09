@@ -1,0 +1,21 @@
+[package]
+name = "minder"
+description = "Minder — lightweight file manager for Mavind"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "minder"
+path = "src/main.rs"
+
+[dependencies]
+gtk4 = { version = "0.9", features = ["v4_10"] }
+glib = "0.20"
+anyhow.workspace = true
+
+[lints.rust]
+unsafe_code = "forbid"

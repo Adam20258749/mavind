@@ -1,0 +1,41 @@
+#!/bin/sh
+# labwc autostart — Mavind desktop bring-up. Order matters: bus helpers, then
+# wallpaper, then the shell, then services.
+
+log() { echo "autostart: $*" >> "${MAVIND_LOG:-/dev/null}"; }
+
+# --- portals / bus activation (harmless if absent) ------------------
+/usr/libexec/xdg-desktop-portal-wlr &                      2>/dev/null || true
+command -v xdg-desktop-portal >/dev/null && /usr/libexec/xdg-desktop-portal & 2>/dev/null || true
+
+# --- wallpaper ---------------------------------------------------
+PERF="${XDG_CONFIG_HOME:-$HOME/.config}/mavind/performance.conf"
+WALL=/usr/share/backgrounds/mavind/wallpaper.png
+if [ -r "$PERF" ] && grep -qE '^\s*wallpaper\s*=\s*solid' "$PERF"; then
+    swaybg -c '#1c1c22' &
+elif [ -f "$WALL" ]; then
+    swaybg -i "$WALL" -m fill &
+else
+    swaybg -c '#1c1c22' &
+fi
+log "wallpaper up"
+
+# --- notifications ---------------------------------------------
+mako &
+
+# --- the Mavind panel/shell ----------------------------------
+mavind-shell &
+log "mavind-shell started pid $!"
+
+# --- idle / power management --------------------------------
+# Lock after 5 min idle and before sleep. Screen-DPMS-off on idle is tracked in
+# ROADMAP (needs wlopm / a labwc idle action; not packaged in Debian yet).
+swayidle -w \
+    timeout 300  'mavind-shell --lock'  \
+    before-sleep 'mavind-shell --lock' &
+
+# --- audio (user services) ---------------------------------
+systemctl --user start pipewire pipewire-pulse wireplumber 2>/dev/null || true
+
+# --- network / bluetooth tray (StatusNotifierItem) --------
+# mavind-shell hosts the SNI tray; nm/bluez expose items via D-Bus.

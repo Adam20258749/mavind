@@ -1,0 +1,48 @@
+#!/bin/sh
+# Mavind session entry point. Invoked by greetd (installed) or ~/.bash_profile
+# (live ISO). Sets up the environment, then execs labwc which runs the autostart.
+set -eu
+
+# --- XDG base dirs -------------------------------------------------------
+export XDG_SESSION_TYPE=wayland
+export XDG_CURRENT_DESKTOP=Mavind:wlroots
+export XDG_SESSION_DESKTOP=mavind
+: "${XDG_RUNTIME_DIR:=/run/user/$(id -u)}"
+export XDG_RUNTIME_DIR
+: "${XDG_CONFIG_HOME:=$HOME/.config}"
+: "${XDG_DATA_HOME:=$HOME/.local/share}"
+export XDG_CONFIG_HOME XDG_DATA_HOME
+
+# --- toolkit / rendering ------------------------------------------
+export GDK_BACKEND=wayland
+export QT_QPA_PLATFORM=wayland
+export MOZ_ENABLE_WAYLAND=1
+export _JAVA_AWT_WM_NONREPARENTING=1
+export SDL_VIDEODRIVER=wayland
+export CLUTTER_BACKEND=wayland
+export WINIT_UNIX_BACKEND=wayland
+
+# --- Performance Mode: pick renderer before anything GTK starts ----
+PERF="$XDG_CONFIG_HOME/mavind/performance.conf"
+if [ -r "$PERF" ] && grep -qE '^\s*enabled\s*=\s*true' "$PERF"; then
+    export GSK_RENDERER=cairo
+    export MAVIND_PERFORMANCE=1
+else
+    # weak GPUs still fall back automatically inside the shell
+    export GSK_RENDERER=${GSK_RENDERER:-gl}
+fi
+
+# --- seat / dbus ------------------------------------------------
+if [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ] && command -v dbus-run-session >/dev/null 2>&1; then
+    exec dbus-run-session -- "$0" --dbus-done
+fi
+# (re-entered here with a session bus)
+[ "${1:-}" = "--dbus-done" ] && shift || true
+
+# --- hand off to the compositor ------------------------------
+mkdir -p "$XDG_RUNTIME_DIR/mavind"
+export MAVIND_LOG="$XDG_RUNTIME_DIR/mavind/session.log"
+: > "$MAVIND_LOG"
+echo "mavind-session: starting labwc $(date -u +%FT%TZ)" >> "$MAVIND_LOG"
+
+exec labwc -C "$XDG_CONFIG_HOME/labwc" 2>>"$MAVIND_LOG"

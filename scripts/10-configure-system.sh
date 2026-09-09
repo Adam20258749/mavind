@@ -1,0 +1,153 @@
+#!/usr/bin/env bash
+# Stage 10 — turn the plain Debian rootfs into Mavind:
+# branding, users, systemd trimming, session, sysctl/zram, skel, config drop-in.
+set -euo pipefail
+# shellcheck source=scripts/lib/common.sh
+source "$(dirname "$0")/lib/common.sh"
+need_root
+
+SYS="${REPO_ROOT}/system"
+DESK="${REPO_ROOT}/desktop"
+
+[ -d "${ROOTFS}" ] || die "no rootfs — run stage 00 first"
+trap 'chroot_umount "${ROOTFS}"' EXIT
+chroot_mount "${ROOTFS}"
+
+# ---------------------------------------------------------------------------
+step "branding"
+install -Dm644 "${SYS}/os-release"        "${ROOTFS}/usr/lib/os-release"
+ln -sf ../usr/lib/os-release              "${ROOTFS}/etc/os-release"
+install -Dm644 "${SYS}/issue"             "${ROOTFS}/etc/issue"
+install -Dm644 "${SYS}/issue"             "${ROOTFS}/etc/issue.net"
+echo "mavind"                            > "${ROOTFS}/etc/hostname"
+cat > "${ROOTFS}/etc/hosts" <<'EOF'
+127.0.0.1   localhost
+127.0.1.1   mavind
+::1         localhost ip6-localhost ip6-loopback
+EOF
+install -Dm644 "${SYS}/motd"              "${ROOTFS}/etc/motd" 2>/dev/null || true
+
+# tier lists for `mpk` (mpk size / mpk install-tier / mpk list --tier)
+install -d "${ROOTFS}/usr/lib/mavind/packages"
+install -Dm644 "${SYS}/packages/core.list"     "${ROOTFS}/usr/lib/mavind/packages/core.list"
+install -Dm644 "${SYS}/packages/compat.list"   "${ROOTFS}/usr/lib/mavind/packages/compat.list"
+install -Dm644 "${SYS}/packages/optional.list" "${ROOTFS}/usr/lib/mavind/packages/optional.list"
+
+# ---------------------------------------------------------------------------
+step "locale + time"
+in_chroot "${ROOTFS}" bash -c '
+  echo "LANG=C.UTF-8" > /etc/default/locale
+  echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
+  command -v locale-gen >/dev/null && locale-gen || true
+  ln -sf /usr/share/zoneinfo/UTC /etc/localtime
+  echo "UTC" > /etc/timezone
+'
+
+# ---------------------------------------------------------------------------
+step "users"
+# root locked; live user "mavind" / password "mavind" (installer forces a change).
+in_chroot "${ROOTFS}" bash -c '
+  set -e
+  passwd -l root || true
+  if ! id mavind >/dev/null 2>&1; then
+    useradd --create-home --shell /bin/bash \
+      --groups sudo,audio,video,input,render,netdev,plugdev,bluetooth mavind
+  fi
+  echo "mavind:mavind" | chpasswd
+  install -d -m0750 -o mavind -g mavind /home/mavind
+  # passwordless sudo for the live session only; installer removes this file
+  install -Dm440 /dev/stdin /etc/sudoers.d/90-mavind-live <<<"mavind ALL=(ALL) NOPASSWD: ALL"
+'
+
+# ---------------------------------------------------------------------------
+step "systemd: set target + apply mask-list"
+in_chroot "${ROOTFS}" systemctl set-default graphical.target
+
+# Mask units we never want running (RAM + boot time). List lives in the repo.
+while read -r unit; do
+  [ -n "${unit}" ] || continue
+  in_chroot "${ROOTFS}" systemctl mask "${unit}" 2>/dev/null \
+    || warn "could not mask ${unit} (not present?)"
+done < <(read_list "${SYS}/systemd/mask.list")
+
+# Enable what we do want.
+while read -r unit; do
+  [ -n "${unit}" ] || continue
+  in_chroot "${ROOTFS}" systemctl enable "${unit}" 2>/dev/null \
+    || warn "could not enable ${unit}"
+done < <(read_list "${SYS}/systemd/enable.list")
+
+# journald: volatile + tiny
+install -Dm644 "${SYS}/systemd/journald.conf.d/00-mavind.conf" \
+  "${ROOTFS}/etc/systemd/journald.conf.d/00-mavind.conf"
+# logind: handle lid/power sanely on old laptops
+install -Dm644 "${SYS}/systemd/logind.conf.d/00-mavind.conf" \
+  "${ROOTFS}/etc/systemd/logind.conf.d/00-mavind.conf"
+# use dbus-broker if present
+in_chroot "${ROOTFS}" systemctl enable dbus-broker.service 2>/dev/null || true
+
+# ---------------------------------------------------------------------------
+step "kernel cmdline defaults + zram + sysctl"
+install -Dm644 "${SYS}/sysctl.d/99-mavind.conf" \
+  "${ROOTFS}/etc/sysctl.d/99-mavind.conf"
+install -Dm644 "${SYS}/zram/zram-generator.conf" \
+  "${ROOTFS}/etc/systemd/zram-generator.conf"
+install -Dm644 "${SYS}/modprobe.d/mavind.conf" \
+  "${ROOTFS}/etc/modprobe.d/mavind.conf" 2>/dev/null || true
+
+# ---------------------------------------------------------------------------
+step "session: greetd + labwc + mavind-session"
+# Live ISO autologins; installed system uses greetd (installer flips this).
+install -Dm755 "${DESK}/mavind-session"       "${ROOTFS}/usr/bin/mavind-session"
+install -Dm644 "${DESK}/mavind-session.desktop" \
+  "${ROOTFS}/usr/share/wayland-sessions/mavind.desktop"
+
+# labwc config -> /etc/xdg/labwc (system defaults; user can override in ~/.config)
+install -d "${ROOTFS}/etc/xdg/labwc"
+install -Dm644 "${DESK}/labwc/rc.xml"      "${ROOTFS}/etc/xdg/labwc/rc.xml"
+install -Dm644 "${DESK}/labwc/menu.xml"    "${ROOTFS}/etc/xdg/labwc/menu.xml"
+install -Dm644 "${DESK}/labwc/autostart"   "${ROOTFS}/etc/xdg/labwc/autostart"
+install -Dm644 "${DESK}/labwc/environment" "${ROOTFS}/etc/xdg/labwc/environment"
+
+# greetd: drop-in config that runs labwc for the greeter and the session
+install -Dm644 "${SYS}/greetd/config.toml" "${ROOTFS}/etc/greetd/config.toml"
+# Live autologin override:
+install -Dm644 "${SYS}/systemd/getty-autologin.conf" \
+  "${ROOTFS}/etc/systemd/system/getty@tty1.service.d/autologin.conf"
+cat > "${ROOTFS}/home/mavind/.bash_profile" <<'EOF'
+# Mavind live: start the desktop on tty1 login
+if [ -z "${WAYLAND_DISPLAY:-}" ] && [ "$(tty)" = "/dev/tty1" ]; then
+  exec /usr/bin/mavind-session
+fi
+EOF
+in_chroot "${ROOTFS}" chown mavind:mavind /home/mavind/.bash_profile
+
+# ---------------------------------------------------------------------------
+step "skel + wallpaper + xdg dirs"
+cp -aT "${SYS}/skel" "${ROOTFS}/etc/skel"
+install -Dm644 "${DESK}/assets/wallpaper.png" \
+  "${ROOTFS}/usr/share/backgrounds/mavind/wallpaper.png" 2>/dev/null || \
+  warn "no wallpaper.png yet — shell will use a solid colour"
+# make sure the live user gets the skel we just wrote
+in_chroot "${ROOTFS}" bash -c 'cp -aT /etc/skel /home/mavind && chown -R mavind:mavind /home/mavind'
+
+# ---------------------------------------------------------------------------
+step "firstboot oneshot (regen machine-id, ssh keys, resize, etc.)"
+install -Dm755 "${SYS}/firstboot/mavind-firstboot.sh" \
+  "${ROOTFS}/usr/lib/mavind/firstboot.sh"
+install -Dm644 "${SYS}/firstboot/mavind-firstboot.service" \
+  "${ROOTFS}/etc/systemd/system/mavind-firstboot.service"
+in_chroot "${ROOTFS}" systemctl enable mavind-firstboot.service
+# blank machine-id => systemd regenerates on first boot
+: > "${ROOTFS}/etc/machine-id"
+
+# ---------------------------------------------------------------------------
+step "cleanup"
+rm -f "${ROOTFS}/etc/resolv.conf"        # firstboot/NM will provide it
+ln -sf /run/systemd/resolve/stub-resolv.conf "${ROOTFS}/etc/resolv.conf" 2>/dev/null || \
+  ln -sf /run/NetworkManager/resolv.conf "${ROOTFS}/etc/resolv.conf" 2>/dev/null || true
+rm -rf "${ROOTFS}/var/log/"* "${ROOTFS}/tmp/"* "${ROOTFS}/root/".bash_history 2>/dev/null || true
+
+chroot_umount "${ROOTFS}"
+trap - EXIT
+log "stage 10 complete — rootfs $(du -sh "${ROOTFS}" | cut -f1)"

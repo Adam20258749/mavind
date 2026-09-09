@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Mavind Settings
+GenericName=Settings
+Comment=Display, sound, network, storage, users, updates
+Exec=mavind-settings %U
+Icon=mavind-settings
+Terminal=false
+Categories=Settings;DesktopSettings;System;
+StartupNotify=true
+Keywords=settings;preferences;control;config;display;sound;network;

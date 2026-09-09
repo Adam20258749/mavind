@@ -1,0 +1,39 @@
+MIT License
+
+Copyright (c) 2026 Mavind contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+Mavind is an OS *distribution*. When built, the resulting ISO image includes
+third-party software under its own license terms, including but not limited to:
+
+  - The Linux kernel                     GPL-2.0
+  - Debian base packages                 various (see each package's copyright)
+  - Wine                                  LGPL-2.1-or-later
+  - Mesa                                  MIT / various
+  - labwc, wlroots                        MIT
+  - GTK                                   LGPL-2.1-or-later
+  - systemd                              LGPL-2.1-or-later
+  - DXVK, VKD3D-Proton (optional)         zlib / Apache-2.0
+
+The MIT license above applies to the Mavind-authored code in this repository
+(build scripts, mavind-shell, minder, mavind-settings, mavind-system-monitor,
+mavind-windows-apps, mpk, installer, docs).
