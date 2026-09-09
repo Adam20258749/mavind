@@ -17,70 +17,80 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ---------------------------------------------------------------------------
+  # Fast feedback: compile + test the Rust workspace. Runs in the SAME Debian
+  # release Mavind targets, so gtk4-rs links against the same libs the image has.
+  # ---------------------------------------------------------------------------
   components:
-    # Fast feedback: compile + test the Rust workspace before the slow ISO build.
     runs-on: ubuntu-latest
+    container:
+      image: debian:trixie-slim
     steps:
+      - name: Base tools
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends git ca-certificates
       - uses: actions/checkout@v4
-
-      - name: Clean flaky third-party apt repos
-        # GitHub runners bundle google-chrome / microsoft / etc. apt sources that
-        # periodically serve a corrupt index and break `apt-get update`. We don't
-        # need them.
+      - name: Toolchain + GTK dev
         run: |
-          # Base Ubuntu repos are in ubuntu.sources; everything else here is
-          # third-party (google-chrome.sources etc.) and periodically ships a
-          # corrupt index. Keep only ubuntu.sources.
-          sudo find /etc/apt/sources.list.d -maxdepth 1 -type f ! -name "ubuntu.sources" -delete || true
-          echo "remaining apt sources:"; ls -la /etc/apt/sources.list.d/ || true
-
-      - name: Install toolchain + GTK dev
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            cargo rustc pkg-config libgtk-4-dev libglib2.0-dev \
-            libgtk4-layer-shell-dev libadwaita-1-dev
-
-      - run: cargo build --release --workspace
+          apt-get install -y --no-install-recommends \
+            cargo rustc pkg-config \
+            libgtk-4-dev libglib2.0-dev libgtk4-layer-shell-dev libadwaita-1-dev \
+            libpango1.0-dev libcairo2-dev
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: cargo-components-${{ hashFiles('**/Cargo.toml') }}
+          restore-keys: cargo-components-
+      - run: cargo build --release --workspace --locked || cargo build --release --workspace
       - run: cargo test --workspace
       - run: cargo fmt --all --check || true
       - run: cargo clippy --workspace --all-targets || true
 
+  # ---------------------------------------------------------------------------
+  # Full ISO build, in a privileged Debian trixie container (mmdebstrap needs
+  # mount + chroot). Mirrors scripts/build.sh / build/Containerfile.
+  # ---------------------------------------------------------------------------
   iso:
     needs: components
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 75
+    container:
+      image: debian:trixie
+      options: --privileged
     env:
       PROFILE: ${{ inputs.profile || 'compat' }}
     steps:
+      - name: Base tools
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends git ca-certificates
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
 
-      - name: Clean flaky third-party apt repos
+      - name: Build dependencies
         run: |
-          sudo find /etc/apt/sources.list.d -maxdepth 1 -type f ! -name "ubuntu.sources" -delete || true
-          echo "remaining apt sources:"; ls -la /etc/apt/sources.list.d/ || true
-
-      - name: Install build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            mmdebstrap xorriso squashfs-tools \
-            grub-common grub-pc-bin grub-efi-amd64-bin mtools dosfstools \
-            cargo rustc pkg-config libgtk-4-dev libglib2.0-dev \
-            libgtk4-layer-shell-dev libadwaita-1-dev \
-            ca-certificates zstd file rsync debian-archive-keyring
+          apt-get install -y --no-install-recommends \
+            mmdebstrap debian-archive-keyring \
+            squashfs-tools xorriso mtools dosfstools \
+            grub-common grub-pc-bin grub-efi-amd64-bin \
+            cargo rustc pkg-config \
+            libgtk-4-dev libglib2.0-dev libgtk4-layer-shell-dev libadwaita-1-dev \
+            libpango1.0-dev libcairo2-dev \
+            zstd file rsync fakeroot uidmap
 
       - name: Cache apt archives + cargo
         uses: actions/cache@v4
         with:
-          path: |
-            build/cache
-          key: mavind-build-${{ env.PROFILE }}-${{ hashFiles('system/packages/*.list','Cargo.toml','**/Cargo.toml') }}
-          restore-keys: mavind-build-${{ env.PROFILE }}-
+          path: build/cache
+          key: mavind-${{ env.PROFILE }}-${{ hashFiles('system/packages/*.list','**/Cargo.toml') }}
+          restore-keys: mavind-${{ env.PROFILE }}-
 
       - name: Build Mavind.iso
-        run: sudo -E ./scripts/build-iso.sh --profile "$PROFILE" --out build/out/Mavind.iso --keep-work
+        run: ./scripts/build-iso.sh --profile "$PROFILE" --out build/out/Mavind.iso --keep-work
 
       - name: Size report
         if: always()
@@ -95,7 +105,7 @@ jobs:
 
       - name: Headless boot smoke test (QEMU)
         run: |
-          sudo apt-get install -y --no-install-recommends qemu-system-x86 ovmf
+          apt-get install -y --no-install-recommends qemu-system-x86 ovmf
           ./tests/smoke-boot.sh build/out/Mavind.iso 240
 
       - name: Upload ISO + metadata
