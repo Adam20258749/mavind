@@ -10,7 +10,7 @@ use gtk4::glib;
 use gtk4::prelude::*;
 use gtk4::{
     Align, Application, ApplicationWindow, Box as GtkBox, Button, Entry, EventControllerKey, Label,
-    ListBox, ListBoxRow, MenuButton, Notebook, Orientation, Popover, ScrolledWindow,
+    ListBox, ListBoxRow, MenuButton, Notebook, Orientation, Popover,
 };
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -433,7 +433,7 @@ fn wire_downloads(session: &NetworkSession) {
         // simplicity — good enough for a lightweight browser.
         let name = download
             .request()
-            .map(|r| r.uri())
+            .and_then(|r| r.uri())
             .map(|u| u.to_string())
             .and_then(|u| {
                 u.split(['?', '#'])
