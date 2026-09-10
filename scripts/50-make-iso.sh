@@ -20,20 +20,41 @@ cp "${LIVE}/initrd.img"              "${ISO_TREE}/live/initrd.img"
 echo "Mavind $(. "${REPO_ROOT}/system/os-release"; echo "${VERSION_ID:-0.1.0}")" \
   > "${ISO_TREE}/.disk/info" 2>/dev/null || { mkdir -p "${ISO_TREE}/.disk"; echo "Mavind" > "${ISO_TREE}/.disk/info"; }
 
-step "grub.cfg"
+step "grub menu (mavind.cfg)"
+# The real menu is mavind.cfg, NOT grub.cfg. The embedded stub in the standalone
+# GRUB binary lives at (memdisk)/boot/grub/grub.cfg; if the real menu were also
+# named grub.cfg, `search --file /boot/grub/grub.cfg` would match the memdisk and
+# `configfile` would recurse into the stub forever ("maximum recursion depth
+# exceeded"). Distinct name + search-by-label avoids that.
 sed -e "s/@VOLID@/${MAVIND_VOLID}/g" \
     -e "s/@PROFILE@/${MAVIND_PROFILE}/g" \
-    "${REPO_ROOT}/boot/grub/grub.cfg.in" > "${ISO_TREE}/boot/grub/grub.cfg"
+    "${REPO_ROOT}/boot/grub/grub.cfg.in" > "${ISO_TREE}/boot/grub/mavind.cfg"
+# Fallback grub.cfg on the ISO for any GRUB that auto-loads $prefix/grub.cfg.
+printf 'configfile ${prefix}/mavind.cfg\n' > "${ISO_TREE}/boot/grub/grub.cfg"
 cp "${REPO_ROOT}/boot/grub/theme.txt"  "${ISO_TREE}/boot/grub/theme.txt" 2>/dev/null || true
 cp "${REPO_ROOT}/boot/splash.png"      "${ISO_TREE}/boot/grub/splash.png" 2>/dev/null || true
 
-# The standalone GRUB images embed a tiny config that just chainloads the real
-# grub.cfg from the ISO. Same for BIOS and UEFI.
+# Tiny startup config baked into the standalone GRUB (both BIOS + UEFI). It finds
+# the live medium by volume label, then loads the real menu.
 EMBED="$(mktemp)"
-cat > "${EMBED}" <<'EOF'
-search --no-floppy --set=root --file /boot/grub/grub.cfg
-set prefix=($root)/boot/grub
-configfile /boot/grub/grub.cfg
+cat > "${EMBED}" <<EOF
+set pager=1
+search --no-floppy --set=root --label ${MAVIND_VOLID}
+if [ ! -f (\$root)/boot/grub/mavind.cfg ]; then
+  search --no-floppy --set=root --file /boot/grub/mavind.cfg
+fi
+if [ -f (\$root)/boot/grub/mavind.cfg ]; then
+  set prefix=(\$root)/boot/grub
+  configfile (\$root)/boot/grub/mavind.cfg
+else
+  echo ""
+  echo "Mavind: could not find /boot/grub/mavind.cfg (label ${MAVIND_VOLID})."
+  echo "Known devices:"
+  ls
+  echo ""
+  echo "Dropping to the GRUB shell in 30s."
+  sleep 30
+fi
 EOF
 
 GRUB_MODS_COMMON="normal linux search search_label search_fs_file iso9660 configfile \
@@ -50,8 +71,8 @@ grub-mkstandalone \
 
 step "build GRUB BIOS El Torito image (i386-pc)"
 # grub-mkimage is the correct tool for a CD BIOS core; concatenate cdboot.img in
-# front to make the bootable El Torito image. The embedded config just chainloads
-# /boot/grub/grub.cfg from the ISO (same stub as UEFI).
+# front to make the bootable El Torito image. Same embedded stub as UEFI: find
+# the medium by label, then configfile /boot/grub/mavind.cfg.
 # shellcheck disable=SC2086
 grub-mkimage \
   --format=i386-pc \
