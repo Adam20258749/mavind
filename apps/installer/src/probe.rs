@@ -28,10 +28,13 @@ pub struct Facts {
 
 impl Facts {
     pub fn gather() -> Facts {
-        if let Some(f) = Self::from_backend() {
-            return f;
+        let mut f = Self::from_backend().unwrap_or_else(Self::fallback);
+        // The backend's disk list can come back empty (older probe parser,
+        // odd lsblk output). Re-scan directly before trusting "no disks".
+        if f.disks.is_empty() {
+            f.disks = Self::lsblk_disks();
         }
-        Self::fallback()
+        f
     }
 
     fn from_backend() -> Option<Facts> {
@@ -82,8 +85,10 @@ impl Facts {
     }
 
     fn lsblk_disks() -> Vec<Disk> {
+        // `-P` pairs output: values are quoted, so `MODEL="VBOX HARDDISK"`
+        // (with a space) doesn't shift the columns.
         let Ok(out) = Command::new("lsblk")
-            .args(["-dnb", "-o", "NAME,SIZE,MODEL,TRAN,TYPE"])
+            .args(["-dnb", "-P", "-o", "NAME,SIZE,TYPE,MODEL,TRAN"])
             .output()
         else {
             return vec![];
@@ -91,19 +96,28 @@ impl Facts {
         String::from_utf8_lossy(&out.stdout)
             .lines()
             .filter_map(|l| {
-                let f: Vec<&str> = l.split_whitespace().collect();
-                if f.len() < 2 || f.last() != Some(&"disk") {
+                let get = |k: &str| pair_value(l, k);
+                if get("TYPE").as_deref() != Some("disk") {
                     return None;
                 }
+                let name = get("NAME")?;
                 Some(Disk {
-                    name: format!("/dev/{}", f[0]),
-                    size: f[1].parse().unwrap_or(0),
-                    model: f.get(2).map(|s| s.to_string()).unwrap_or_default(),
-                    bus: f.get(3).map(|s| s.to_string()).unwrap_or_default(),
+                    name: format!("/dev/{name}"),
+                    size: get("SIZE").and_then(|s| s.parse().ok()).unwrap_or(0),
+                    model: get("MODEL").unwrap_or_default(),
+                    bus: get("TRAN").unwrap_or_default(),
                 })
             })
             .collect()
     }
+}
+
+/// Extract `value` from a `KEY="value"` token in an `lsblk -P` line.
+fn pair_value(line: &str, key: &str) -> Option<String> {
+    let needle = format!("{key}=\"");
+    let start = line.find(&needle)? + needle.len();
+    let end = line[start..].find('"')? + start;
+    Some(line[start..end].to_string())
 }
 
 /// A single row on the system-check page.
