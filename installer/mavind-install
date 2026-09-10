@@ -56,8 +56,6 @@ if [ "$MODE" = probe ]; then
   cores=$(nproc)
   fw=bios; [ -d /sys/firmware/efi ] && fw=uefi
   net=false; ip route get 1.1.1.1 >/dev/null 2>&1 && net=true
-  # -P (pairs) output is quoted, so a MODEL like "VBOX HARDDISK" (space!) does
-  # not shift columns. Line: NAME="sda" SIZE="21474836480" TYPE="disk" MODEL="..." TRAN="sata"
   # -P (pairs): values are quoted, so a MODEL with a space ("VBOX HARDDISK")
   # does not shift columns. Pull each KEY="VALUE" out of the whole line.
   disks=$(lsblk -dnb -P -o NAME,SIZE,TYPE,MODEL,TRAN 2>/dev/null | awk '
