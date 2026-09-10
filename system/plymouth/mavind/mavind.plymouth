@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Mavind
+Description=Mavind boot splash — a single M on a dark ground
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/mavind
+ScriptFile=/usr/share/plymouth/themes/mavind/mavind.script

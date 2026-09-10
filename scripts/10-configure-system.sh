@@ -113,6 +113,21 @@ install -Dm644 "${SYS}/modules-load.d/mavind-vm.conf" \
   "${ROOTFS}/etc/modules-load.d/mavind-vm.conf" 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
+step "boot splash (Plymouth 'M' theme)"
+install -d "${ROOTFS}/usr/share/plymouth/themes/mavind"
+install -Dm644 "${SYS}/plymouth/mavind/mavind.plymouth" \
+  "${ROOTFS}/usr/share/plymouth/themes/mavind/mavind.plymouth"
+install -Dm644 "${SYS}/plymouth/mavind/mavind.script" \
+  "${ROOTFS}/usr/share/plymouth/themes/mavind/mavind.script"
+# keep the last frame on screen until labwc paints (no black flash)
+install -Dm644 "${SYS}/plymouth/plymouth-quit.service.d/retain.conf" \
+  "${ROOTFS}/etc/systemd/system/plymouth-quit.service.d/retain.conf"
+# make it the default theme (stage 40's update-initramfs bakes it in)
+in_chroot "${ROOTFS}" plymouth-set-default-theme mavind 2>/dev/null \
+  || echo "Theme=mavind" > "${ROOTFS}/etc/plymouth/plymouthd.conf.d/mavind.conf" 2>/dev/null \
+  || { install -d "${ROOTFS}/etc/plymouth"; printf '[Daemon]\nTheme=mavind\n' > "${ROOTFS}/etc/plymouth/plymouthd.conf"; }
+
+# ---------------------------------------------------------------------------
 step "session: greetd + labwc + mavind-session"
 # Live ISO autologins; installed system uses greetd (installer flips this).
 install -Dm755 "${DESK}/mavind-session"       "${ROOTFS}/usr/bin/mavind-session"
