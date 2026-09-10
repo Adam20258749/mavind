@@ -25,7 +25,25 @@ hardware and virtual machines, loads a lightweight Wayland desktop, and runs Win
 ### Where is the ISO
 
 You will find the ISO under
-MavindOS\Build\Out
+mavind/
+├── boot/            GRUB config, UEFI+BIOS hybrid boot, splash
+├── kernel/          Kernel config fragments + module keep-lists
+├── system/          os-release, systemd unit tuning, sysctl, skel, package tier lists
+├── desktop/         labwc config, session startup, mavind-shell (Rust)
+├── apps/
+│   ├── minder/            file manager (Rust/GTK4)
+│   ├── settings/          Mavind Settings (Rust/GTK4)
+│   ├── terminal/          foot config + launcher
+│   ├── system-monitor/    System Monitor (Rust/GTK4)
+│   └── windows-apps/      Mavind Windows Apps (Rust: CLI core + GTK4 GUI)
+├── compatibility/
+│   └── wine/         Wine package set, prefix templates, MIME + right-click integration, DXVK helper
+├── packages/        mpk — lightweight tier-aware package tool over dpkg/apt
+├── installer/       TUI installer (partition, unsquash, GRUB, user)
+├── tests/           QEMU/VBox boot, size + RAM measurement, smoke tests
+├── scripts/         reproducible build pipeline (stages 00–50)
+├── build/          <- Under the \Out\ is the ISO
+└── docs/            architecture, build, size/RAM budgets, roadmap
 ---
 
 ## What's in the box (minimal install)
