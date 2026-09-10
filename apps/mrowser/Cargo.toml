@@ -1,0 +1,24 @@
+[package]
+name = "mrowser"
+description = "Mrowser — Mavind's lightweight web browser (WebKitGTK)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "mrowser"
+path = "src/main.rs"
+
+[dependencies]
+gtk4 = { version = "0.9", features = ["v4_12"] }
+webkit6 = "0.4"
+glib = "0.20"
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+
+[lints.rust]
+unsafe_code = "forbid"
