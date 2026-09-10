@@ -1,0 +1,25 @@
+[Unit]
+Description=Mavind first-boot setup (OOBE)
+ConditionPathExists=!/var/lib/mavind/oobe-complete
+After=systemd-user-sessions.service seatd.service dbus.service
+Conflicts=getty@tty1.service greetd.service
+Before=greetd.service graphical.target
+Wants=seatd.service
+
+[Service]
+Type=simple
+ExecStart=/usr/lib/mavind/oobe/session
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+StandardInput=tty
+StandardOutput=journal
+StandardError=journal
+Restart=on-failure
+RestartSec=3
+# give the compositor a real seat + input
+SupplementaryGroups=video input render seat
+PAMName=login
+
+[Install]
+WantedBy=graphical.target

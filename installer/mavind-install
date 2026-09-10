@@ -1,149 +1,185 @@
 #!/bin/bash
-# Mavind installer — copies the running live system onto a disk.
-# Intentionally small: GPT + ESP + one ext4 root, GRUB (UEFI or BIOS), one user.
+# Mavind install backend. Runs as root (via pkexec from mavind-installer, or
+# `sudo mavind-install ...` by hand). Two modes:
 #
-#   sudo mavind-install            # interactive (dialog)
-#   sudo mavind-install --unattended --disk /dev/sda --user me --hostname box
+#   mavind-install --plan /path/plan.json     # non-interactive, used by the GUI
+#   mavind-install                            # tiny interactive fallback (dialog)
 #
+# In --plan mode it streams progress on stdout as:  PROGRESS: <pct> <message>
+# and logs detail to stderr + /var/log/mavind-install.log.
 set -euo pipefail
 
-SQUASH=/run/live/medium/live/filesystem.squashfs
-[ -f "$SQUASH" ] || SQUASH=/lib/live/mount/medium/live/filesystem.squashfs
-ROOTMNT=/mnt/target
+LOG=/var/log/mavind-install.log
+exec 2> >(tee -a "$LOG" >&2)
+
+SQUASH=""
+for c in /run/live/medium/live/filesystem.squashfs \
+        /lib/live/mount/medium/live/filesystem.squashfs \
+        /run/live/rootfs/filesystem.squashfs; do
+  [ -f "$c" ] && SQUASH="$c" && break
+done
+ROOTMNT=/run/mavind-install/target
 ESP_MB=512
 
-die() { echo "mavind-install: $*" >&2; exit 1; }
-[ "$(id -u)" -eq 0 ] || die "run as root"
-[ -f "$SQUASH" ] || die "cannot find the live squashfs (are you booted from the Mavind ISO?)"
+die()  { echo "mavind-install: $*" >&2; exit 1; }
+prog() { printf 'PROGRESS: %s %s\n' "$1" "${*:2}"; }
 
-UNATTENDED=0 DISK="" USERNAME="" HOSTNAME="mavind" FULLNAME="Mavind User"
+# --------------------------------------------------------------------------
+# Parse args first. --probe needs no privileges; --plan / interactive need root.
+# --------------------------------------------------------------------------
+PLAN=""
+MODE=interactive
 while [ $# -gt 0 ]; do
   case "$1" in
-    --unattended) UNATTENDED=1; shift;;
-    --disk) DISK="$2"; shift 2;;
-    --user) USERNAME="$2"; shift 2;;
-    --hostname) HOSTNAME="$2"; shift 2;;
-    *) die "unknown arg: $1";;
+    --plan) PLAN="$2"; MODE=plan; shift 2 ;;
+    --probe) MODE=probe; shift ;;
+    *) die "unknown arg: $1" ;;
   esac
 done
+[ "$MODE" = probe ] || [ "$(id -u)" -eq 0 ] || die "must run as root"
 
-have_dialog() { command -v dialog >/dev/null 2>&1; }
-ask() { # prompt default -> echo value
-  local p="$1" d="${2:-}"
-  if [ "$UNATTENDED" = 1 ] || ! have_dialog; then
-    read -r -p "$p [$d]: " a || true; echo "${a:-$d}"
+jget() { # jget <file> <key>
+  if command -v jq >/dev/null 2>&1; then
+    jq -r --arg k "$2" '.[$k] // empty' "$1"
   else
-    dialog --stdout --inputbox "$p" 8 60 "$d"
+    grep -oE "\"$2\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" "$1" | head -1 \
+      | sed -E 's/.*:[[:space:]]*"([^"]*)"/\1/'
   fi
 }
 
-firmware_mode() { [ -d /sys/firmware/efi ] && echo uefi || echo bios; }
+# --------------------------------------------------------------------------
+# --probe: print machine facts as JSON for the installer's "system check".
+# --------------------------------------------------------------------------
+if [ "$MODE" = probe ]; then
+  mem_kb=$(awk '/^MemTotal:/{print $2}' /proc/meminfo)
+  arch=$(uname -m)
+  cores=$(nproc)
+  fw=bios; [ -d /sys/firmware/efi ] && fw=uefi
+  net=false; ip route get 1.1.1.1 >/dev/null 2>&1 && net=true
+  disks=$(lsblk -dnb -o NAME,SIZE,MODEL,TRAN,TYPE 2>/dev/null | awk '$5=="disk"{
+      printf "%s{\"name\":\"/dev/%s\",\"size\":%s,\"model\":\"%s\",\"bus\":\"%s\"}",
+      (NR>1?",":""), $1, $2, ($3==""?"disk":$3), ($4==""?"?":$4) }')
+  printf '{"mem_kb":%s,"arch":"%s","cores":%s,"firmware":"%s","network":%s,"disks":[%s]}\n' \
+    "${mem_kb:-0}" "$arch" "${cores:-1}" "$fw" "$net" "$disks"
+  exit 0
+fi
 
-pick_disk() {
-  local disks; disks=$(lsblk -dnp -o NAME,SIZE,MODEL -e 7,11 | grep -v loop || true)
-  [ -n "$disks" ] || die "no disks found"
-  if [ -n "$DISK" ]; then echo "$DISK"; return; fi
-  if [ "$UNATTENDED" = 1 ] || ! have_dialog; then
-    echo "Available disks:"; echo "$disks"
-    read -r -p "Target disk (e.g. /dev/sda): " d; echo "$d"
-  else
-    local menu=(); while read -r n s m; do menu+=("$n" "$s $m"); done <<<"$disks"
-    dialog --stdout --menu "Select the target disk. ALL DATA ON IT WILL BE ERASED." 16 70 8 "${menu[@]}"
-  fi
-}
+# --------------------------------------------------------------------------
+# Interactive fallback (no GUI). Minimal on purpose.
+# --------------------------------------------------------------------------
+if [ "$MODE" = interactive ]; then
+  command -v dialog >/dev/null || die "no plan given and 'dialog' not installed"
+  DISK=$(lsblk -dnp -o NAME,SIZE,MODEL -e 7,11 | dialog --stdout --menu \
+        "Target disk (ALL DATA ERASED)" 18 70 8 $(lsblk -dnp -o NAME,SIZE -e 7,11))
+  [ -n "$DISK" ] || die "cancelled"
+  HOSTNAME=$(dialog --stdout --inputbox "Hostname" 8 50 mavind)
+  PLAN=$(mktemp)
+  fw=bios; [ -d /sys/firmware/efi ] && fw=uefi
+  cat > "$PLAN" <<EOF
+{"disk":"$DISK","firmware":"$fw","locale":"en_US.UTF-8","keymap":"us",
+ "timezone":"UTC","hostname":"${HOSTNAME:-mavind}","create_user":false}
+EOF
+fi
 
-main() {
-  local fw; fw=$(firmware_mode)
-  echo "Firmware: $fw"
-  DISK=$(pick_disk); [ -b "$DISK" ] || die "not a block device: $DISK"
-  [ -n "$USERNAME" ] || USERNAME=$(ask "Username" "mavind")
-  HOSTNAME=$(ask "Hostname" "$HOSTNAME")
-  local PASS PASS2
-  if [ "$UNATTENDED" = 1 ]; then PASS="mavind"; else
-    PASS=$(dialog --stdout --insecure --passwordbox "Password for $USERNAME" 8 50 || true)
-    PASS2=$(dialog --stdout --insecure --passwordbox "Repeat password" 8 50 || true)
-    [ "$PASS" = "$PASS2" ] || die "passwords did not match"
-  fi
-  [ -n "$PASS" ] || die "empty password"
+# --------------------------------------------------------------------------
+# Plan-driven install.
+# --------------------------------------------------------------------------
+[ -f "$PLAN" ]   || die "plan not found: $PLAN"
+[ -n "$SQUASH" ] || die "cannot find the live squashfs (not booted from the Mavind ISO?)"
 
-  echo
-  echo "About to ERASE $DISK and install Mavind ($fw). This cannot be undone."
-  if [ "$UNATTENDED" != 1 ]; then read -r -p "Type YES to continue: " c; [ "$c" = YES ] || die "aborted"; fi
+DISK=$(jget "$PLAN" disk)
+FW=$(jget "$PLAN" firmware); [ -n "$FW" ] || { FW=bios; [ -d /sys/firmware/efi ] && FW=uefi; }
+LOCALE=$(jget "$PLAN" locale);   LOCALE=${LOCALE:-en_US.UTF-8}
+KEYMAP=$(jget "$PLAN" keymap);   KEYMAP=${KEYMAP:-us}
+TZ=$(jget "$PLAN" timezone);     TZ=${TZ:-UTC}
+HOSTNAME=$(jget "$PLAN" hostname); HOSTNAME=${HOSTNAME:-mavind}
+VERSION_ID=$(jget "$PLAN" version_id)
 
-  echo "==> partitioning $DISK"
-  wipefs -a "$DISK"
-  sgdisk --zap-all "$DISK"
-  sgdisk -n1:0:+${ESP_MB}M -t1:ef00 -c1:"MAVIND-ESP" "$DISK"
-  sgdisk -n2:0:0          -t2:8300 -c2:"MAVIND-ROOT" "$DISK"
-  partprobe "$DISK"; sleep 1
-  local P1 P2
-  case "$DISK" in *[0-9]) P1="${DISK}p1"; P2="${DISK}p2";; *) P1="${DISK}1"; P2="${DISK}2";; esac
+[ -b "$DISK" ] || die "not a block device: $DISK"
+echo "plan: disk=$DISK fw=$FW locale=$LOCALE keymap=$KEYMAP tz=$TZ host=$HOSTNAME" >&2
 
-  echo "==> formatting"
-  mkfs.vfat -F32 -n MAVIND-ESP "$P1"
-  mkfs.ext4 -F -L MAVIND-ROOT "$P2"
+case "$DISK" in *[0-9]) P1="${DISK}p1"; P2="${DISK}p2";; *) P1="${DISK}1"; P2="${DISK}2";; esac
 
-  echo "==> mounting"
-  mkdir -p "$ROOTMNT"
-  mount "$P2" "$ROOTMNT"
-  mkdir -p "$ROOTMNT/boot/efi"
-  mount "$P1" "$ROOTMNT/boot/efi"
+prog 2 "Preparing"
+mkdir -p "$ROOTMNT"
+umount -R "$ROOTMNT" 2>/dev/null || true
 
-  echo "==> copying system (unsquashfs)"
-  unsquashfs -f -d "$ROOTMNT" "$SQUASH"
+prog 5 "Partitioning $DISK"
+wipefs -a "$DISK"
+sgdisk --zap-all "$DISK"
+sgdisk -n1:0:+${ESP_MB}M -t1:ef00 -c1:MAVIND-ESP  "$DISK"
+sgdisk -n2:0:0           -t2:8300 -c2:MAVIND-ROOT "$DISK"
+partprobe "$DISK"; udevadm settle 2>/dev/null || sleep 1
 
-  echo "==> fstab"
-  local RUUID EUUID
-  RUUID=$(blkid -s UUID -o value "$P2"); EUUID=$(blkid -s UUID -o value "$P1")
-  cat > "$ROOTMNT/etc/fstab" <<EOF
+prog 18 "Formatting"
+mkfs.vfat -F32 -n MAVIND-ESP "$P1"
+mkfs.ext4 -F -L MAVIND-ROOT "$P2"
+
+prog 25 "Mounting target"
+mount "$P2" "$ROOTMNT"
+mkdir -p "$ROOTMNT/boot/efi"
+mount "$P1" "$ROOTMNT/boot/efi"
+
+prog 30 "Copying system"
+# unsquashfs prints "N% ..." progress; map it onto 30..78.
+unsquashfs -f -d "$ROOTMNT" "$SQUASH" 2>&1 | while IFS= read -r line; do
+  p=$(printf '%s' "$line" | grep -oE '[0-9]+%' | tr -d '%' | tail -1 || true)
+  [ -n "${p:-}" ] && prog $(( 30 + p * 48 / 100 )) "Copying system ($p%)"
+done
+
+prog 80 "Writing fstab"
+RUUID=$(blkid -s UUID -o value "$P2"); EUUID=$(blkid -s UUID -o value "$P1")
+cat > "$ROOTMNT/etc/fstab" <<EOF
 UUID=$RUUID  /          ext4  defaults,noatime  0 1
 UUID=$EUUID  /boot/efi  vfat  umask=0077        0 2
 EOF
 
-  echo "==> configuring target"
-  for d in dev proc sys run; do mount --rbind "/$d" "$ROOTMNT/$d"; done
-  cp -f /etc/resolv.conf "$ROOTMNT/etc/resolv.conf" || true
+prog 84 "Configuring system"
+for d in dev proc sys run; do mount --rbind "/$d" "$ROOTMNT/$d"; done
+cp -f /etc/resolv.conf "$ROOTMNT/etc/resolv.conf" 2>/dev/null || true
 
-  chroot "$ROOTMNT" /bin/bash -euo pipefail <<CHROOT
+chroot "$ROOTMNT" /bin/bash -euo pipefail <<CHROOT
 echo "$HOSTNAME" > /etc/hostname
-sed -i "s/127.0.1.1.*/127.0.1.1\t$HOSTNAME/" /etc/hosts || true
+sed -i "s/^127.0.1.1.*/127.0.1.1\t$HOSTNAME/" /etc/hosts 2>/dev/null || echo "127.0.1.1 $HOSTNAME" >> /etc/hosts
+echo "LANG=$LOCALE" > /etc/default/locale
+echo "$LOCALE UTF-8" > /etc/locale.gen
+command -v locale-gen >/dev/null && locale-gen || true
+ln -sf "/usr/share/zoneinfo/$TZ" /etc/localtime; echo "$TZ" > /etc/timezone
+printf 'XKBLAYOUT="%s"\n' "$KEYMAP" > /etc/default/keyboard
 
-# real user, remove the live conveniences
-if ! id "$USERNAME" >/dev/null 2>&1; then
-  useradd --create-home --shell /bin/bash \
-    --groups sudo,audio,video,input,render,netdev,plugdev,bluetooth "$USERNAME"
-fi
-echo "$USERNAME:$PASS" | chpasswd
-id mavind >/dev/null 2>&1 && [ "$USERNAME" != mavind ] && deluser --remove-home mavind || true
+# Live conveniences OFF; OOBE takes over on first boot.
 rm -f /etc/sudoers.d/90-mavind-live
 rm -f /etc/systemd/system/getty@tty1.service.d/autologin.conf
+id mavind >/dev/null 2>&1 && deluser --remove-home mavind 2>/dev/null || true
 
-# greetd for a normal login
-systemctl enable greetd.service || true
-
-# regenerate identity on next boot
+# greetd stays disabled until OOBE completes.
+systemctl disable greetd.service 2>/dev/null || true
+systemctl enable  mavind-oobe.service 2>/dev/null || true
 : > /etc/machine-id
-rm -f /var/lib/mavind/.firstboot-done
+rm -f /var/lib/mavind/.firstboot-done /var/lib/mavind/oobe-complete
+[ -n "$VERSION_ID" ] && sed -i "s/^VERSION_ID=.*/VERSION_ID=\"$VERSION_ID\"/" /usr/lib/os-release || true
 CHROOT
 
-  echo "==> installing GRUB ($fw)"
-  if [ "$fw" = uefi ]; then
-    chroot "$ROOTMNT" apt-get -y install --no-install-recommends grub-efi-amd64 || true
-    chroot "$ROOTMNT" grub-install --target=x86_64-efi --efi-directory=/boot/efi \
-      --bootloader-id=Mavind --recheck
-  else
-    chroot "$ROOTMNT" apt-get -y install --no-install-recommends grub-pc || true
-    chroot "$ROOTMNT" grub-install --target=i386-pc --recheck "$DISK"
-  fi
-  chroot "$ROOTMNT" update-grub
+prog 88 "Installing bootloader ($FW)"
+if [ "$FW" = uefi ]; then
+  chroot "$ROOTMNT" apt-get -y install --no-install-recommends grub-efi-amd64 2>/dev/null || true
+  chroot "$ROOTMNT" grub-install --target=x86_64-efi --efi-directory=/boot/efi \
+    --bootloader-id=Mavind --recheck --no-nvram || \
+  chroot "$ROOTMNT" grub-install --target=x86_64-efi --efi-directory=/boot/efi \
+    --bootloader-id=Mavind --recheck
+  # portable fallback path
+  mkdir -p "$ROOTMNT/boot/efi/EFI/BOOT"
+  cp "$ROOTMNT/boot/efi/EFI/Mavind/grubx64.efi" "$ROOTMNT/boot/efi/EFI/BOOT/BOOTX64.EFI" 2>/dev/null || true
+else
+  chroot "$ROOTMNT" apt-get -y install --no-install-recommends grub-pc 2>/dev/null || true
+  chroot "$ROOTMNT" grub-install --target=i386-pc --recheck "$DISK"
+fi
+chroot "$ROOTMNT" update-grub
 
-  echo "==> cleanup"
-  sync
-  for d in dev/pts dev proc sys run; do umount -lR "$ROOTMNT/$d" 2>/dev/null || true; done
-  umount -R "$ROOTMNT" 2>/dev/null || true
+prog 96 "Finishing"
+sync
+for d in dev/pts dev proc sys run; do umount -lR "$ROOTMNT/$d" 2>/dev/null || true; done
+umount -R "$ROOTMNT" 2>/dev/null || true
 
-  echo
-  echo "Mavind is installed on $DISK. Remove the installation medium and reboot."
-}
-
-main
+prog 100 "Done"
+echo "mavind-install: complete on $DISK ($FW)" >&2

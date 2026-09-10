@@ -1,0 +1,21 @@
+window { background-color: #1c1c22; color: #e6e6ec; }
+.wiz-title { font-size: 20px; font-weight: 700; color: #ffffff; }
+.dim { color: #9a9aa6; }
+.ok   { color: #57d9a3; font-weight: 700; }
+.warn { color: #e0c081; font-weight: 700; }
+.fail { color: #ff5c6c; font-weight: 700; }
+.card {
+    background-color: #23232b;
+    border: 1px solid #33333d;
+    border-radius: 10px;
+    padding: 14px 16px;
+}
+.card.selected { border-color: #8a5cf6; background-color: #26233a; }
+.card-title { font-weight: 600; font-size: 14px; }
+.cards row { border-bottom: 1px solid #2a2a33; }
+.cards row:selected { background-color: #2e2a44; }
+progressbar > trough { min-height: 14px; border-radius: 7px; background-color: #2a2a33; }
+progressbar > trough > progress { background-color: #8a5cf6; border-radius: 7px; }
+textview { background-color: #141418; color: #c8c8d0; }
+textview text { background-color: #141418; }
+button.suggested-action { background-color: #7a4fd0; color: #ffffff; }

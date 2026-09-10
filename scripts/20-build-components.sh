@@ -28,7 +28,8 @@ install_bin() {
   log "installed /usr/bin/${name} ($(du -h "${ROOTFS}/usr/bin/${name}" | cut -f1))"
 }
 
-for c in mavind-shell mavind-system-monitor mavind-windows-apps minder mavind-settings mpk; do
+for c in mavind-shell mavind-system-monitor mavind-windows-apps minder mavind-settings \
+         mavind-installer mavind-oobe mpk; do
   install_bin "$c"
 done
 # CLI alias for the wine core
@@ -42,17 +43,38 @@ for s in "${REPO_ROOT}"/desktop/bin/*; do
   log "installed /usr/bin/$(basename "$s")"
 done
 
-# system installer (used from the live session)
+# --------------------------------------------------------------------------
+step "installer + OOBE glue"
+# privileged backend (called by mavind-installer via pkexec / by hand via sudo)
 install -Dm755 "${REPO_ROOT}/installer/mavind-install" "${ROOTFS}/usr/bin/mavind-install"
-install -Dm644 /dev/stdin "${ROOTFS}/usr/share/applications/mavind-install.desktop" <<'EOF'
+# OOBE: session bring-up + the apply helper + the service unit
+install -Dm755 "${REPO_ROOT}/system/oobe/session"          "${ROOTFS}/usr/lib/mavind/oobe/session"
+install -Dm755 "${REPO_ROOT}/system/oobe/mavind-oobe-apply" "${ROOTFS}/usr/bin/mavind-oobe-apply"
+install -Dm644 "${REPO_ROOT}/system/oobe/mavind-oobe.service" \
+  "${ROOTFS}/usr/lib/systemd/system/mavind-oobe.service"
+# GUI launcher for the installer (shown on the live desktop)
+install -Dm644 /dev/stdin "${ROOTFS}/usr/share/applications/mavind-installer.desktop" <<'EOF'
 [Desktop Entry]
 Type=Application
 Name=Install Mavind
-Comment=Copy Mavind to a disk
-Exec=foot -e sudo mavind-install
+GenericName=Installer
+Comment=Install Mavind on this PC
+Exec=mavind-installer
 Icon=drive-harddisk
 Terminal=false
 Categories=System;
+StartupNotify=true
+EOF
+# polkit: let the "sudo" group run the install backend without a password prompt
+install -Dm644 /dev/stdin "${ROOTFS}/usr/share/polkit-1/rules.d/20-mavind-installer.rules" <<'EOF'
+// mavind-installer calls: pkexec mavind-install --plan <file>
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.freedesktop.policykit.exec" &&
+        action.lookup("program") == "/usr/bin/mavind-install" &&
+        subject.isInGroup("sudo")) {
+        return polkit.Result.YES;
+    }
+});
 EOF
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,34 @@
+#!/bin/sh
+# Mavind OOBE session: bring up a bare labwc with mavind-oobe as the only client.
+# When mavind-oobe exits, labwc exits, we hand off to greetd.
+set -eu
+
+export XDG_RUNTIME_DIR=/run/mavind-oobe
+mkdir -p "$XDG_RUNTIME_DIR"
+chmod 700 "$XDG_RUNTIME_DIR"
+export XDG_SESSION_TYPE=wayland
+export XDG_CURRENT_DESKTOP=Mavind
+export GDK_BACKEND=wayland
+export WLR_NO_HARDWARE_CURSORS=1
+
+# software rendering if there's no usable GPU node (VMs, nomodeset)
+if [ ! -e /dev/dri/renderD128 ] && [ ! -e /dev/dri/card0 ]; then
+    export WLR_RENDERER=pixman
+    export LIBGL_ALWAYS_SOFTWARE=1
+    export GSK_RENDERER=cairo
+fi
+
+echo "mavind-oobe: starting" >&2
+# labwc -s CMD: run CMD as startup client; labwc exits when it does.
+dbus-run-session -- labwc -s "mavind-oobe" || true
+
+if [ -e /var/lib/mavind/oobe-complete ]; then
+    echo "mavind-oobe: complete, handing off to greetd" >&2
+    systemctl disable mavind-oobe.service >/dev/null 2>&1 || true
+    systemctl enable  greetd.service      >/dev/null 2>&1 || true
+    systemctl start   greetd.service      >/dev/null 2>&1 \
+        || systemctl isolate graphical.target >/dev/null 2>&1 || true
+else
+    echo "mavind-oobe: exited without completing — will retry" >&2
+    exit 1
+fi

@@ -55,8 +55,23 @@ need_root
 need_cmd mmdebstrap chroot mksquashfs xorriso mtools grub-mkstandalone \
          cargo rustc pkg-config numfmt file zstd
 
+# --- release version, stamped from git (changes on every commit/update) -----
+_gd="$(git -C "${REPO_ROOT}" describe --tags --always --dirty 2>/dev/null || true)"
+_gc="$(git -C "${REPO_ROOT}" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+_bd="$(date -u -d "@${SOURCE_DATE_EPOCH}" +%Y%m%d 2>/dev/null || date -u +%Y%m%d)"
+: "${MAVIND_BASE_VERSION:=0.1.0}"
+if [ -n "${_gd}" ] && printf '%s' "${_gd}" | grep -q '^v\?[0-9]'; then
+  MAVIND_VERSION_ID="${_gd#v}"
+else
+  MAVIND_VERSION_ID="${MAVIND_BASE_VERSION}+${_bd}.g${_gc}"
+fi
+MAVIND_VERSION="${MAVIND_VERSION_ID} (${MAVIND_PROFILE}, build ${_bd})"
+MAVIND_BUILD_ID="${_bd}.g${_gc}"
+export MAVIND_VERSION_ID MAVIND_VERSION MAVIND_BUILD_ID
+
 step "Mavind build  profile=${MAVIND_PROFILE} arch=${MAVIND_ARCH} suite=${MAVIND_SUITE}"
 log "repo:        ${REPO_ROOT}"
+log "version:     ${MAVIND_VERSION}"
 log "output:      ${OUT_ISO}"
 log "SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH} ($(date -u -d "@${SOURCE_DATE_EPOCH}" 2>/dev/null || true))"
 [ "${NO_CACHE}" -eq 1 ] && { warn "clearing build cache"; rm -rf "${CACHE_DIR}"; }
