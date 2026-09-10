@@ -97,19 +97,23 @@ for kv in "${MODROOT}"/*; do
 done
 
 # ---------------------------------------------------------------------------
-step "drop unused Mesa DRI drivers"
-DRI="${ROOTFS}/usr/lib/${MAVIND_ARCH}-linux-gnu/dri"
-[ -d "${DRI}" ] || DRI="${ROOTFS}/usr/lib/x86_64-linux-gnu/dri"
-if [ -d "${DRI}" ]; then
-  # keep: intel (i965/iris/crocus), amd (radeonsi), nouveau, software (swrast/llvmpipe/zink),
-  #       virtio_gpu (VM guests), kms_swrast fallback
-  find "${DRI}" -maxdepth 1 -type f -name '*_dri.so' \
-    ! -name 'iris_dri.so' ! -name 'crocus_dri.so' ! -name 'i965_dri.so' \
-    ! -name 'radeonsi_dri.so' ! -name 'nouveau_dri.so' \
-    ! -name 'swrast_dri.so' ! -name 'kms_swrast_dri.so' ! -name 'virtio_gpu_dri.so' \
-    ! -name 'zink_dri.so' \
-    -delete 2>/dev/null || true
-  log "DRI drivers kept: $(find "${DRI}" -name '*_dri.so' | wc -l)"
+# NOTE: Mesa DRI-driver pruning is DISABLED for now. Getting the keep-list wrong
+# breaks graphics on real GPUs and VMs (e.g. dropping vmwgfx_dri.so kills VMSVGA
+# in VirtualBox/VMware). Re-enable with a per-GPU tested list once Phase 4
+# hardware testing is done. Savings would be ~30-50 MB.
+if [ "${MAVIND_PRUNE_DRI:-0}" = "1" ]; then
+  step "drop unused Mesa DRI drivers (MAVIND_PRUNE_DRI=1)"
+  DRI="${ROOTFS}/usr/lib/${MAVIND_ARCH}-linux-gnu/dri"
+  [ -d "${DRI}" ] || DRI="${ROOTFS}/usr/lib/x86_64-linux-gnu/dri"
+  if [ -d "${DRI}" ]; then
+    find "${DRI}" -maxdepth 1 -type f -name '*_dri.so' \
+      ! -name 'iris_dri.so' ! -name 'crocus_dri.so' ! -name 'i965_dri.so' \
+      ! -name 'radeonsi_dri.so' ! -name 'r600_dri.so' ! -name 'nouveau_dri.so' \
+      ! -name 'swrast_dri.so' ! -name 'kms_swrast_dri.so' \
+      ! -name 'virtio_gpu_dri.so' ! -name 'vmwgfx_dri.so' ! -name 'zink_dri.so' \
+      -delete 2>/dev/null || true
+    log "DRI drivers kept: $(find "${DRI}" -name '*_dri.so' | wc -l)"
+  fi
 fi
 
 # ---------------------------------------------------------------------------

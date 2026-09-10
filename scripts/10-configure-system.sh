@@ -98,6 +98,8 @@ install -Dm644 "${SYS}/zram/zram-generator.conf" \
   "${ROOTFS}/etc/systemd/zram-generator.conf"
 install -Dm644 "${SYS}/modprobe.d/mavind.conf" \
   "${ROOTFS}/etc/modprobe.d/mavind.conf" 2>/dev/null || true
+install -Dm644 "${SYS}/modules-load.d/mavind-vm.conf" \
+  "${ROOTFS}/etc/modules-load.d/mavind-vm.conf" 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
 step "session: greetd + labwc + mavind-session"
@@ -113,15 +115,22 @@ install -Dm644 "${DESK}/labwc/menu.xml"    "${ROOTFS}/etc/xdg/labwc/menu.xml"
 install -Dm644 "${DESK}/labwc/autostart"   "${ROOTFS}/etc/xdg/labwc/autostart"
 install -Dm644 "${DESK}/labwc/environment" "${ROOTFS}/etc/xdg/labwc/environment"
 
-# greetd: drop-in config that runs labwc for the greeter and the session
+# greetd config is staged for the INSTALLED system, but greetd must NOT run on
+# the live ISO — it would show a login prompt instead of the desktop. The
+# installer enables greetd itself.
 install -Dm644 "${SYS}/greetd/config.toml" "${ROOTFS}/etc/greetd/config.toml"
-# Live autologin override:
+in_chroot "${ROOTFS}" systemctl disable greetd.service 2>/dev/null || true
+
+# Live: autologin mavind on tty1, which execs mavind-session from ~/.bash_profile.
 install -Dm644 "${SYS}/systemd/getty-autologin.conf" \
   "${ROOTFS}/etc/systemd/system/getty@tty1.service.d/autologin.conf"
+in_chroot "${ROOTFS}" systemctl enable getty@tty1.service 2>/dev/null || true
 cat > "${ROOTFS}/home/mavind/.bash_profile" <<'EOF'
-# Mavind live: start the desktop on tty1 login
-if [ -z "${WAYLAND_DISPLAY:-}" ] && [ "$(tty)" = "/dev/tty1" ]; then
-  exec /usr/bin/mavind-session
+# Mavind live: start the desktop on the first console login.
+if [ -z "${WAYLAND_DISPLAY:-}" ] && [ -z "${SSH_TTY:-}" ]; then
+  case "$(tty)" in
+    /dev/tty1) exec /usr/bin/mavind-session ;;
+  esac
 fi
 EOF
 in_chroot "${ROOTFS}" chown mavind:mavind /home/mavind/.bash_profile
