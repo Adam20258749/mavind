@@ -55,27 +55,51 @@ fi
 mkdir -p "$XDG_RUNTIME_DIR/mavind"
 export MAVIND_LOG="$XDG_RUNTIME_DIR/mavind/session.log"
 : > "$MAVIND_LOG"
-echo "mavind-session: starting labwc $(date -u +%FT%TZ)  renderer=${WLR_RENDERER:-auto}" | tee -a "$MAVIND_LOG"
 
-# Run (not exec) so we can react if the compositor fails to come up.
-set +e
-labwc -C "$XDG_CONFIG_HOME/labwc" 2>&1 | tee -a "$MAVIND_LOG"
-rc=${PIPESTATUS[0]}
-set -e
+# Only pass -C if the user actually has a labwc config dir; otherwise let labwc
+# use its normal search path so it picks up /etc/xdg/labwc/{rc.xml,autostart,...}.
+LABWC_ARGS=()
+if [ -f "$XDG_CONFIG_HOME/labwc/rc.xml" ] || [ -f "$XDG_CONFIG_HOME/labwc/autostart" ]; then
+    LABWC_ARGS=(-C "$XDG_CONFIG_HOME/labwc")
+fi
 
-if [ "${rc:-1}" -ne 0 ]; then
+run_labwc() {  # -> exit code of labwc (not tee)
+    echo "mavind-session: starting labwc $(date -u +%FT%TZ)  renderer=${WLR_RENDERER:-auto}" \
+        | tee -a "$MAVIND_LOG"
+    set +e
+    labwc "${LABWC_ARGS[@]}" 2>&1 | tee -a "$MAVIND_LOG"
+    local rc=${PIPESTATUS[0]}
+    set -e
+    return "$rc"
+}
+
+rc=0
+run_labwc || rc=$?
+
+# Hardware EGL/GLES often fails on VMs with 3D disabled (VMware "No 3D enabled",
+# VBoxSVGA) even though /dev/dri exists. Retry once, forced to software rendering.
+if [ "$rc" -ne 0 ] && [ "${WLR_RENDERER:-}" != "pixman" ]; then
+    echo "mavind-session: compositor failed (rc=$rc); retrying with software rendering" \
+        | tee -a "$MAVIND_LOG"
+    export WLR_RENDERER=pixman
+    export WLR_NO_HARDWARE_CURSORS=1
+    export LIBGL_ALWAYS_SOFTWARE=1
+    export GSK_RENDERER=cairo
+    rc=0
+    run_labwc || rc=$?
+fi
+
+if [ "$rc" -ne 0 ]; then
     echo
     echo "================================================================"
-    echo " Mavind desktop failed to start (labwc exit $rc)."
+    echo " Mavind desktop could not start (labwc exit $rc), even in software mode."
     echo " Last lines of the session log:"
     echo "----------------------------------------------------------------"
-    tail -n 25 "$MAVIND_LOG"
+    tail -n 25 "$MAVIND_LOG" 2>/dev/null || true
     echo "----------------------------------------------------------------"
-    echo " You are now at a shell. Things to try:"
-    echo "   WLR_RENDERER=pixman labwc      # force software rendering"
-    echo "   ls -l /dev/dri                 # is there a GPU device?"
-    echo "   journalctl -b -p err           # boot errors"
-    echo " In VirtualBox: set Display > Graphics Controller = VMSVGA."
+    echo " Rescue shell. Try:  ls -l /dev/dri  ·  journalctl -b -p err"
+    echo " VM tip: enable 3D acceleration, or use VMSVGA (VirtualBox)."
     echo "================================================================"
-    exec "${SHELL:-/bin/bash}" -l
+    # --norc --noprofile so this does NOT re-trigger ~/.bash_profile (loop).
+    exec /bin/bash --norc --noprofile -i
 fi

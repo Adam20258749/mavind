@@ -137,10 +137,15 @@ install -Dm644 "${SYS}/systemd/getty-autologin.conf" \
   "${ROOTFS}/etc/systemd/system/getty@tty1.service.d/autologin.conf"
 in_chroot "${ROOTFS}" systemctl enable getty@tty1.service 2>/dev/null || true
 cat > "${ROOTFS}/home/mavind/.bash_profile" <<'EOF'
-# Mavind live: start the desktop on the first console login.
-if [ -z "${WAYLAND_DISPLAY:-}" ] && [ -z "${SSH_TTY:-}" ]; then
+# Mavind live: start the desktop on the first console login — but only once.
+# MAVIND_SESSION_TRIED is exported before exec, so if mavind-session falls back
+# to a shell, this does not re-launch it (which would loop).
+if [ -z "${WAYLAND_DISPLAY:-}" ] && [ -z "${SSH_TTY:-}" ] && [ -z "${MAVIND_SESSION_TRIED:-}" ]; then
   case "$(tty)" in
-    /dev/tty1) exec /usr/bin/mavind-session ;;
+    /dev/tty1)
+      export MAVIND_SESSION_TRIED=1
+      exec /usr/bin/mavind-session
+      ;;
   esac
 fi
 EOF
