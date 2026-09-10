@@ -86,13 +86,17 @@ jobs:
 
       - name: Cache apt archives + cargo
         uses: actions/cache@v4
+        # Explicit, shallow globs only — a "**/Cargo.toml" here would try to walk
+        # build/work/rootfs (a full Debian tree) on the post-run and blow up.
         with:
           path: build/cache
-          key: mavind-${{ env.PROFILE }}-${{ hashFiles('system/packages/*.list','**/Cargo.toml') }}
+          key: mavind-${{ env.PROFILE }}-${{ hashFiles('Cargo.toml', 'apps/*/Cargo.toml', 'desktop/*/Cargo.toml', 'packages/*/Cargo.toml', 'system/packages/core.list', 'system/packages/compat.list') }}
           restore-keys: mavind-${{ env.PROFILE }}-
 
       - name: Build Mavind.iso
-        run: ./scripts/build-iso.sh --profile "$PROFILE" --out build/out/Mavind.iso --keep-work
+        # No --keep-work in CI: the artifact has everything, and leaving the
+        # rootfs around breaks later steps that scan the workspace.
+        run: ./scripts/build-iso.sh --profile "$PROFILE" --out build/out/Mavind.iso
 
       - name: Size report
         if: always()
