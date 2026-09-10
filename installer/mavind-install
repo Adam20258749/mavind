@@ -56,9 +56,20 @@ if [ "$MODE" = probe ]; then
   cores=$(nproc)
   fw=bios; [ -d /sys/firmware/efi ] && fw=uefi
   net=false; ip route get 1.1.1.1 >/dev/null 2>&1 && net=true
-  disks=$(lsblk -dnb -o NAME,SIZE,MODEL,TRAN,TYPE 2>/dev/null | awk '$5=="disk"{
+  # -P (pairs) output is quoted, so a MODEL like "VBOX HARDDISK" (space!) does
+  # not shift columns. Line: NAME="sda" SIZE="21474836480" TYPE="disk" MODEL="..." TRAN="sata"
+  # -P (pairs): values are quoted, so a MODEL with a space ("VBOX HARDDISK")
+  # does not shift columns. Pull each KEY="VALUE" out of the whole line.
+  disks=$(lsblk -dnb -P -o NAME,SIZE,TYPE,MODEL,TRAN 2>/dev/null | awk '
+    function val(k,   s) { if (match($0, k "=\"[^\"]*\"")) {
+        s = substr($0, RSTART + length(k) + 2, RLENGTH - length(k) - 3); return s } return "" }
+    { type = val("TYPE"); if (type != "disk") next
+      name = val("NAME"); size = val("SIZE"); model = val("MODEL"); tran = val("TRAN")
+      gsub(/[\\"]/, "", model)
       printf "%s{\"name\":\"/dev/%s\",\"size\":%s,\"model\":\"%s\",\"bus\":\"%s\"}",
-      (NR>1?",":""), $1, $2, ($3==""?"disk":$3), ($4==""?"?":$4) }')
+        (started ? "," : ""), name, (size == "" ? 0 : size),
+        (model == "" ? "disk" : model), (tran == "" ? "?" : tran)
+      started = 1 }')
   printf '{"mem_kb":%s,"arch":"%s","cores":%s,"firmware":"%s","network":%s,"disks":[%s]}\n' \
     "${mem_kb:-0}" "$arch" "${cores:-1}" "$fw" "$net" "$disks"
   exit 0
