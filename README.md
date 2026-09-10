@@ -22,35 +22,10 @@ hardware and virtual machines, loads a lightweight Wayland desktop, and runs Win
 
 ## Quick start
 
-### Build the ISO
+### Where is the ISO
 
-You need a Linux host **or** Docker/Podman (the build cannot run on Windows/macOS directly).
-
-**With Docker / Podman (any OS):**
-
-```bash
-./scripts/build.sh --profile compat
-# -> build/out/Mavind.iso
-```
-
-**On a Debian/Ubuntu host:**
-
-```bash
-sudo ./scripts/build-iso.sh --profile compat --out build/out/Mavind.iso
-```
-
-Profiles: `core` (no Wine, smallest), `compat` (core + Wine, default), `full` (compat + Mrowser + extras).
-
-### Boot it
-
-```bash
-./tests/run-qemu.sh build/out/Mavind.iso        # UEFI via OVMF
-./tests/run-virtualbox.sh build/out/Mavind.iso  # creates + starts a VM
-# VMware: see tests/vmware.md
-```
-
-Default live credentials: user `mavind` / password `mavind`.
-
+You will find the ISO under
+MavindOS\Build\Out
 ---
 
 ## What's in the box (minimal install)
