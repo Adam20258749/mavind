@@ -25,6 +25,7 @@ hardware and virtual machines, loads a lightweight Wayland desktop, and runs Win
 ### Where is the ISO
 
 You will find the ISO under
+```
 mavind/
 ├── boot/            GRUB config, UEFI+BIOS hybrid boot, splash
 ├── kernel/          Kernel config fragments + module keep-lists
@@ -42,8 +43,9 @@ mavind/
 ├── installer/       TUI installer (partition, unsquash, GRUB, user)
 ├── tests/           QEMU/VBox boot, size + RAM measurement, smoke tests
 ├── scripts/         reproducible build pipeline (stages 00–50)
-├── build/          <- Under the \Out\ is the ISO
+├── build/           <- Under \Out\ There is the ISO
 └── docs/            architecture, build, size/RAM budgets, roadmap
+```
 ---
 
 ## What's in the box (minimal install)
