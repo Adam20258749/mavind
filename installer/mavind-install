@@ -145,6 +145,28 @@ UUID=$RUUID  /          ext4  defaults,noatime  0 1
 UUID=$EUUID  /boot/efi  vfat  umask=0077        0 2
 EOF
 
+prog 82 "Restoring kernel"
+# The squashfs is built with `-e boot/*` (the live ISO boots /live/vmlinuz), so
+# the freshly-unsquashed target has an EMPTY /boot. Put the kernel back and
+# build a NORMAL initramfs (the live one only knows how to boot boot=live).
+KVER=$(ls -1 "$ROOTMNT/usr/lib/modules" 2>/dev/null | sort -V | tail -1)
+[ -n "$KVER" ] || KVER=$(ls -1 "$ROOTMNT/lib/modules" 2>/dev/null | sort -V | tail -1)
+[ -n "$KVER" ] || die "no kernel modules found in the target — squashfs incomplete?"
+MED=""
+for m in /run/live/medium /lib/live/mount/medium /run/live/rootfs \
+         "$(dirname "$(dirname "$SQUASH")")"; do
+  [ -f "$m/live/vmlinuz" ] && { MED="$m"; break; }
+done
+mkdir -p "$ROOTMNT/boot"
+if [ -n "$MED" ]; then
+  cp "$MED/live/vmlinuz" "$ROOTMNT/boot/vmlinuz-$KVER"
+elif [ -f "/boot/vmlinuz-$KVER" ]; then
+  cp "/boot/vmlinuz-$KVER" "$ROOTMNT/boot/vmlinuz-$KVER"
+else
+  die "cannot find a kernel image (looked for */live/vmlinuz and /boot/vmlinuz-$KVER)"
+fi
+echo "installer: kernel $KVER placed in target /boot (from ${MED:-/boot})" >&2
+
 prog 84 "Configuring system"
 for d in dev proc sys run; do mount --rbind "/$d" "$ROOTMNT/$d"; done
 cp -f /etc/resolv.conf "$ROOTMNT/etc/resolv.conf" 2>/dev/null || true
@@ -163,29 +185,54 @@ rm -f /etc/sudoers.d/90-mavind-live
 rm -f /etc/systemd/system/getty@tty1.service.d/autologin.conf
 id mavind >/dev/null 2>&1 && deluser --remove-home mavind 2>/dev/null || true
 
-# greetd stays disabled until OOBE completes.
 systemctl disable greetd.service 2>/dev/null || true
 systemctl enable  mavind-oobe.service 2>/dev/null || true
 : > /etc/machine-id
 rm -f /var/lib/mavind/.firstboot-done /var/lib/mavind/oobe-complete
 [ -n "$VERSION_ID" ] && sed -i "s/^VERSION_ID=.*/VERSION_ID=\"$VERSION_ID\"/" /usr/lib/os-release || true
+
+# this is a disk install now — drop the live-only bits (offline: removal only)
+apt-get -y purge live-boot live-boot-initramfs-tools 2>/dev/null || true
+apt-get -y autoremove --purge 2>/dev/null || true
+
+# quiet+splash for the installed system too
+if [ -f /etc/default/grub ]; then
+  sed -i 's|^GRUB_CMDLINE_LINUX_DEFAULT=.*|GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"|' /etc/default/grub
+else
+  printf 'GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"\nGRUB_TIMEOUT=3\n' > /etc/default/grub
+fi
 CHROOT
 
-prog 88 "Installing bootloader ($FW)"
+prog 86 "Building initramfs"
+# Rebuild WITHOUT the live-boot hooks so the disk boots on its own.
+rm -f "$ROOTMNT"/etc/initramfs-tools/conf.d/*live* 2>/dev/null || true
+chroot "$ROOTMNT" env DPKG_MAINTSCRIPT_PACKAGE=linux update-initramfs -c -k "$KVER" \
+  || chroot "$ROOTMNT" update-initramfs -u -k "$KVER" \
+  || die "update-initramfs failed for $KVER"
+
+prog 90 "Installing bootloader ($FW)"
 if [ "$FW" = uefi ]; then
-  chroot "$ROOTMNT" apt-get -y install --no-install-recommends grub-efi-amd64 2>/dev/null || true
+  # grub-install needs no network: grub2-common + grub-efi-amd64-bin are already
+  # in the target from the squashfs.
   chroot "$ROOTMNT" grub-install --target=x86_64-efi --efi-directory=/boot/efi \
-    --bootloader-id=Mavind --recheck --no-nvram || \
-  chroot "$ROOTMNT" grub-install --target=x86_64-efi --efi-directory=/boot/efi \
-    --bootloader-id=Mavind --recheck
-  # portable fallback path
+        --bootloader-id=Mavind --recheck --no-nvram \
+    || chroot "$ROOTMNT" grub-install --target=x86_64-efi --efi-directory=/boot/efi \
+        --bootloader-id=Mavind --recheck \
+    || die "grub-install (UEFI) failed"
+  # portable fallback so it boots even without an NVRAM entry
   mkdir -p "$ROOTMNT/boot/efi/EFI/BOOT"
-  cp "$ROOTMNT/boot/efi/EFI/Mavind/grubx64.efi" "$ROOTMNT/boot/efi/EFI/BOOT/BOOTX64.EFI" 2>/dev/null || true
+  cp "$ROOTMNT/boot/efi/EFI/Mavind/grubx64.efi" \
+     "$ROOTMNT/boot/efi/EFI/BOOT/BOOTX64.EFI" 2>/dev/null || true
 else
-  chroot "$ROOTMNT" apt-get -y install --no-install-recommends grub-pc 2>/dev/null || true
-  chroot "$ROOTMNT" grub-install --target=i386-pc --recheck "$DISK"
+  chroot "$ROOTMNT" grub-install --target=i386-pc --recheck "$DISK" \
+    || die "grub-install (BIOS) failed"
 fi
-chroot "$ROOTMNT" update-grub
+
+prog 94 "Writing boot menu"
+chroot "$ROOTMNT" update-grub || die "update-grub failed"
+# sanity: the generated menu must reference our kernel
+grep -q "vmlinuz-$KVER" "$ROOTMNT/boot/grub/grub.cfg" \
+  || die "grub.cfg has no entry for vmlinuz-$KVER — the target will not boot"
 
 prog 96 "Finishing"
 sync
