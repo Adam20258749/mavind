@@ -37,5 +37,11 @@ swayidle -w \
 # --- audio (user services) ---------------------------------
 systemctl --user start pipewire pipewire-pulse wireplumber 2>/dev/null || true
 
+# --- live ISO: put the installer front and centre ----------
+if [ -e /run/live/medium ] || grep -qw 'boot=live' /proc/cmdline 2>/dev/null; then
+    ( sleep 1; exec mavind-installer ) &
+    log "live media detected -> launched mavind-installer"
+fi
+
 # --- network / bluetooth tray (StatusNotifierItem) --------
 # mavind-shell hosts the SNI tray; nm/bluez expose items via D-Bus.

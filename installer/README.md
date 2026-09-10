@@ -1,30 +1,34 @@
 # installer/
 
-`mavind-install` — a small script that installs the running live system to disk.
+The privileged **backend** for the graphical installer. Not meant to be used by
+hand except for debugging.
 
-## What it does
+| File | What |
+|---|---|
+| `mavind-install` | Bash. `--plan FILE` (non-interactive, used by `mavind-installer` via `pkexec`), `--probe` (print machine facts as JSON, no root), or bare (tiny `dialog` fallback). Streams `PROGRESS: <pct> <msg>` on stdout. |
 
-1. GPT partitions the target: 512 MB EFI System Partition + one ext4 root.
-2. `unsquashfs` the live `filesystem.squashfs` onto root.
-3. Writes `/etc/fstab` from partition UUIDs.
-4. In a chroot: sets hostname, creates your user, **removes** the live
-   passwordless-sudo and tty1 autologin, enables `greetd`, blanks `machine-id`.
-5. Installs GRUB — `grub-efi-amd64` for UEFI or `grub-pc` for BIOS — and runs
-   `update-grub`.
+The user-facing pieces live elsewhere:
 
-## Usage
+- **`apps/installer/`** — `mavind-installer`, the GTK4 wizard (language → keyboard →
+  action → version → system check → disk → summary → install). Runs on the live
+  desktop; autostarts when booted from the ISO.
+- **`apps/oobe/`** + **`system/oobe/`** — `mavind-oobe`, the first-boot experience
+  on an installed system (welcome → region → account → privacy → apply). Creates
+  your user account, then hands off to the login screen.
+
+Flow and the `--plan` JSON contract: [`docs/INSTALLER.md`](../docs/INSTALLER.md).
+
+## Debug the backend directly
 
 ```bash
-sudo mavind-install                       # interactive (uses `dialog` if present)
-sudo mavind-install --unattended --disk /dev/sda --user me --hostname mavind-pc
+mavind-install --probe                     # what the wizard sees
+sudo mavind-install --plan /tmp/plan.json   # run an install from a hand-written plan
 ```
 
-## Deliberate limits (Phase 1)
+Log: `/var/log/mavind-install.log`.
 
-- No LVM, no LUKS, no Btrfs subvolumes, no swap partition (Mavind uses zram).
-- No dual-boot menu wizard — GRUB's `os-prober` (optional tier) finds other OSes
-  if installed.
-- No manual partition editor — it takes the whole disk. Pre-partition and mount
-  by hand, then `unsquashfs` yourself for custom layouts.
+## Deliberate limits (Phase 3)
 
-The installer is meant to be readable in one sitting. Extend it in `installer/`.
+- Whole-disk install only (GPT: 512 MB ESP + ext4 root). No partition editor,
+  LVM, LUKS, or dual-boot wizard yet.
+- Account creation is the OOBE's job, not the installer's (like Windows Setup).

@@ -15,8 +15,19 @@ chroot_mount "${ROOTFS}"
 
 # ---------------------------------------------------------------------------
 step "branding"
-install -Dm644 "${SYS}/os-release"        "${ROOTFS}/usr/lib/os-release"
+# render os-release with the version stamped by build-iso.sh
+_vid="${MAVIND_VERSION_ID:-0.1.0}"
+_ver="${MAVIND_VERSION:-0.1.0}"
+_bid="${MAVIND_BUILD_ID:-unknown}"
+sed -e "s|@VERSION_ID@|${_vid}|g" -e "s|@VERSION@|${_ver}|g" -e "s|@BUILD_ID@|${_bid}|g" \
+    "${SYS}/os-release" > "${ROOTFS}/usr/lib/os-release"
 ln -sf ../usr/lib/os-release              "${ROOTFS}/etc/os-release"
+# machine-readable release info for the installer's "choose version" page
+install -d "${ROOTFS}/usr/lib/mavind"
+cat > "${ROOTFS}/usr/lib/mavind/release.json" <<EOF
+{ "version_id": "${_vid}", "pretty": "Mavind ${_vid}", "build_id": "${_bid}",
+  "channel": "${MAVIND_PROFILE:-core}", "arch": "${MAVIND_ARCH:-amd64}" }
+EOF
 install -Dm644 "${SYS}/issue"             "${ROOTFS}/etc/issue"
 install -Dm644 "${SYS}/issue"             "${ROOTFS}/etc/issue.net"
 echo "mavind"                            > "${ROOTFS}/etc/hostname"

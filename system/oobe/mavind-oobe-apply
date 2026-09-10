@@ -1,0 +1,88 @@
+#!/bin/sh
+# Apply the OOBE answers from /run/mavind-oobe.json. Runs as root (mavind-oobe,
+# started by mavind-oobe.service, is already root). Idempotent.
+set -eu
+[ "${1:-}" = "--verbose" ] && set -x
+
+J=/run/mavind-oobe.json
+[ -r "$J" ] || { echo "mavind-oobe-apply: no $J" >&2; exit 1; }
+
+jget() { # jget <key>  -> value (string, or true/false)
+  if command -v jq >/dev/null 2>&1; then
+    jq -r --arg k "$1" '.[$k] // empty' "$J"
+  else
+    grep -oE "\"$1\"[[:space:]]*:[[:space:]]*(\"[^\"]*\"|true|false)" "$J" | head -1 \
+      | sed -E 's/.*:[[:space:]]*"?([^"]*)"?$/\1/'
+  fi
+}
+
+FULL=$(jget fullname);  USERNAME=$(jget username); PASS=$(jget password)
+HOST=$(jget hostname);   TZ=$(jget timezone)
+NTP=$(jget ntp);         AUTO=$(jget autologin)
+: "${HOST:=mavind}" ; : "${TZ:=UTC}"
+[ -n "$USERNAME" ] || { echo "mavind-oobe-apply: empty username" >&2; exit 1; }
+
+echo "mavind-oobe-apply: user=$USERNAME host=$HOST tz=$TZ ntp=$NTP autologin=$AUTO"
+
+# --- account ------------------------------------------------------------
+if ! id "$USERNAME" >/dev/null 2>&1; then
+  useradd --create-home --shell /bin/bash --comment "$FULL" "$USERNAME"
+fi
+for g in sudo audio video input render netdev plugdev bluetooth lp scanner; do
+  getent group "$g" >/dev/null 2>&1 && usermod -aG "$g" "$USERNAME" || true
+done
+printf '%s:%s\n' "$USERNAME" "$PASS" | chpasswd
+printf '%s ALL=(ALL) ALL\n' "$USERNAME" > /etc/sudoers.d/10-mavind-user
+chmod 0440 /etc/sudoers.d/10-mavind-user
+
+# copy skel bits the user may be missing
+[ -d /etc/skel ] && cp -rn /etc/skel/. "/home/$USERNAME/" 2>/dev/null || true
+chown -R "$USERNAME:$USERNAME" "/home/$USERNAME"
+
+# --- hostname ---------------------------------------------------------
+echo "$HOST" > /etc/hostname
+if grep -q '^127.0.1.1' /etc/hosts 2>/dev/null; then
+  sed -i "s/^127.0.1.1.*/127.0.1.1\t$HOST/" /etc/hosts
+else
+  printf '127.0.1.1\t%s\n' "$HOST" >> /etc/hosts
+fi
+hostnamectl set-hostname "$HOST" 2>/dev/null || true
+
+# --- time -----------------------------------------------------------
+if [ -e "/usr/share/zoneinfo/$TZ" ]; then
+  ln -sf "/usr/share/zoneinfo/$TZ" /etc/localtime
+  echo "$TZ" > /etc/timezone
+fi
+if [ "$NTP" = true ]; then
+  timedatectl set-ntp true 2>/dev/null || systemctl enable --now systemd-timesyncd 2>/dev/null || true
+else
+  timedatectl set-ntp false 2>/dev/null || true
+fi
+
+# --- login manager --------------------------------------------------
+id greeter >/dev/null 2>&1 || \
+  useradd --system --home-dir /var/lib/greetd --shell /usr/sbin/nologin greeter 2>/dev/null || true
+mkdir -p /etc/greetd
+{
+  echo '[terminal]'
+  echo 'vt = 1'
+  echo
+  echo '[default_session]'
+  echo 'command = "agreety --cmd /usr/bin/mavind-session"'
+  echo 'user = "greeter"'
+  if [ "$AUTO" = true ]; then
+    echo
+    echo '[initial_session]'
+    echo 'command = "/usr/bin/mavind-session"'
+    echo "user = \"$USERNAME\""
+  fi
+} > /etc/greetd/config.toml
+
+systemctl enable greetd.service >/dev/null 2>&1 || true
+systemctl disable mavind-oobe.service >/dev/null 2>&1 || true
+
+# --- done marker --------------------------------------------------
+mkdir -p /var/lib/mavind
+: > /var/lib/mavind/oobe-complete
+rm -f "$J"
+echo "mavind-oobe-apply: complete"

@@ -9,6 +9,8 @@ members = [
     "apps/windows-apps",
     "apps/minder",
     "apps/settings",
+    "apps/installer",
+    "apps/oobe",
     "packages/mpk",
 ]
 
