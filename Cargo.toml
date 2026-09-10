@@ -11,6 +11,21 @@ members = [
     "apps/settings",
     "apps/installer",
     "apps/oobe",
+    "apps/mrowser",
+    "packages/mpk",
+]
+# mrowser pulls WebKitGTK (~big build dep) and is OPTIONAL-tier only, so it is
+# NOT a default member: `cargo build --release` (core/compat) skips it. It is
+# still compile-checked by CI's `--workspace` build and built explicitly for
+# `--profile full`.
+default-members = [
+    "desktop/mavind-shell",
+    "apps/system-monitor",
+    "apps/windows-apps",
+    "apps/minder",
+    "apps/settings",
+    "apps/installer",
+    "apps/oobe",
     "packages/mpk",
 ]
 

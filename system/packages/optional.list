@@ -3,9 +3,11 @@
 #
 # Format: package  [# note]. Commented lines are NOT installed by `full`.
 
-# --- Mrowser (web browser) — pick ONE backend --------------------------
-# epiphany-browser        # WebKitGTK, lightest, matches the GTK look (~180 MB)
-# firefox-esr             # full-featured (~250 MB)
+# --- Mrowser (web browser) ------------------------------------------
+# Mrowser is a Mavind-authored GTK4 shell over WebKitGTK. This is its engine.
+# Uncommented so `--profile full` and `mpk install-tier optional` pull it;
+# `mpk install mrowser-engine` (alias) also works once the Mavind repo exists.
+libwebkitgtk-6.0-4        # WebKitGTK 6 (GTK4) engine for Mrowser (~90 MB)
 
 # --- desktop portals (screen share, sandboxed file dialogs) ----------
 # xdg-desktop-portal

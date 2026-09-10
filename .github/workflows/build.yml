@@ -36,7 +36,7 @@ jobs:
           apt-get install -y --no-install-recommends \
             cargo rustc pkg-config \
             libgtk-4-dev libglib2.0-dev libgtk4-layer-shell-dev libadwaita-1-dev \
-            libpango1.0-dev libcairo2-dev
+            libpango1.0-dev libcairo2-dev libwebkitgtk-6.0-dev
       - uses: actions/cache@v4
         with:
           path: |
@@ -83,6 +83,9 @@ jobs:
             libgtk-4-dev libglib2.0-dev libgtk4-layer-shell-dev libadwaita-1-dev \
             libpango1.0-dev libcairo2-dev \
             zstd file rsync fakeroot uidmap
+          # Mrowser (WebKitGTK) — only compiled for --profile full, but the
+          # cache key + `cargo metadata` still resolve the whole workspace.
+          [ "${PROFILE:-core}" = "full" ] && apt-get install -y --no-install-recommends libwebkitgtk-6.0-dev || true
 
       - name: Cache apt archives + cargo
         uses: actions/cache@v4

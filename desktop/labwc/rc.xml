@@ -62,6 +62,10 @@
   </keyboard>
 
   <mouse>
+    <!-- MUST be first: without it, defining any <mouse> binding replaces ALL of
+         labwc's built-ins, including the title-bar Minimize/Maximize/Close
+         button clicks (they render but do nothing). -->
+    <default />
     <context name="Root">
       <mousebind button="Right" action="Press"><action name="ShowMenu" menu="root-menu" /></mousebind>
       <mousebind button="Middle" action="Press"><action name="ShowMenu" menu="client-list-combined-menu" /></mousebind>

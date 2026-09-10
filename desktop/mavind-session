@@ -56,11 +56,18 @@ mkdir -p "$XDG_RUNTIME_DIR/mavind"
 export MAVIND_LOG="$XDG_RUNTIME_DIR/mavind/session.log"
 : > "$MAVIND_LOG"
 
+# Only pass -C if the user actually has a labwc config dir; otherwise let labwc
+# use its normal search path so it picks up /etc/xdg/labwc/{rc.xml,autostart,...}.
+LABWC_ARGS=()
+if [ -f "$XDG_CONFIG_HOME/labwc/rc.xml" ] || [ -f "$XDG_CONFIG_HOME/labwc/autostart" ]; then
+    LABWC_ARGS=(-C "$XDG_CONFIG_HOME/labwc")
+fi
+
 run_labwc() {  # -> exit code of labwc (not tee)
     echo "mavind-session: starting labwc $(date -u +%FT%TZ)  renderer=${WLR_RENDERER:-auto}" \
         | tee -a "$MAVIND_LOG"
     set +e
-    labwc -C "$XDG_CONFIG_HOME/labwc" 2>&1 | tee -a "$MAVIND_LOG"
+    labwc "${LABWC_ARGS[@]}" 2>&1 | tee -a "$MAVIND_LOG"
     local rc=${PIPESTATUS[0]}
     set -e
     return "$rc"

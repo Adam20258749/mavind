@@ -139,23 +139,24 @@ pub fn evaluate(f: &Facts) -> Vec<Check> {
         v.push(Check::Fail(format!("Memory: {gib:.1} GiB — need at least 1.5 GiB to install")));
     }
 
-    // firmware
-    match f.firmware.as_str() {
-        "uefi" => v.push(Check::Pass("Firmware: UEFI".into())),
-        _ => v.push(Check::Warn("Firmware: BIOS/legacy — supported, UEFI recommended".into())),
-    }
+    // Firmware is NOT a requirement — Mavind boots UEFI *and* BIOS. (The plan
+    // still records which one, to pick the right GRUB target.)
 
-    // a usable disk of a sane size
+    // a usable disk — warn under 1.5 GB, only block if it can't fit the image
     let biggest = f.disks.iter().map(|d| d.size).max().unwrap_or(0);
     let dgib = biggest as f64 / 1e9;
     if f.disks.is_empty() {
         v.push(Check::Fail("No disks detected to install onto".into()));
-    } else if dgib >= 8.0 {
-        v.push(Check::Pass(format!("Disk available: {dgib:.0} GB")));
-    } else if dgib >= 4.0 {
-        v.push(Check::Warn(format!("Largest disk is {dgib:.1} GB — tight; 8 GB+ recommended")));
+    } else if dgib >= 1.5 {
+        v.push(Check::Pass(format!("Disk available: {dgib:.1} GB")));
+    } else if dgib >= 1.05 {
+        v.push(Check::Warn(format!(
+            "Disk is only {dgib:.1} GB — Mavind fits (~1 GB) but there's little room for apps"
+        )));
     } else {
-        v.push(Check::Fail(format!("Largest disk is only {dgib:.1} GB — need ~4 GB minimum")));
+        v.push(Check::Fail(format!(
+            "Disk is only {dgib:.1} GB — Mavind needs about 1 GB minimum"
+        )));
     }
 
     // network — informational

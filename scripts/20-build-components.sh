@@ -14,10 +14,15 @@ export CARGO_TARGET_DIR
 export CARGO_HOME="${CACHE_DIR}/cargo-home"
 mkdir -p "${CARGO_TARGET_DIR}" "${CARGO_HOME}"
 
-step "cargo build --release (workspace, opt-level=z)"
+step "cargo build --release (default members, opt-level=z)"
 # Built on the host/container, which is the same Debian release as the target,
 # so the dynamic libs match. Stage 30 verifies with ldd against the rootfs.
-( cd "${REPO_ROOT}" && cargo build --release --locked 2>/dev/null || cargo build --release )
+# Default members exclude mrowser (WebKitGTK) — only built for --profile full.
+( cd "${REPO_ROOT}" && { cargo build --release --locked 2>/dev/null || cargo build --release; } )
+if [ "${MAVIND_PROFILE}" = "full" ]; then
+  step "cargo build -p mrowser (WebKitGTK, --profile full)"
+  ( cd "${REPO_ROOT}" && cargo build --release -p mrowser )
+fi
 
 BIN="${CARGO_TARGET_DIR}/release"
 install_bin() {
@@ -34,6 +39,13 @@ for c in mavind-shell mavind-system-monitor mavind-windows-apps minder mavind-se
 done
 # CLI alias for the wine core
 ln -sf mavind-windows-apps "${ROOTFS}/usr/bin/mavind-wine"
+
+# Mrowser: optional tier — only baked in for --profile full.
+if [ "${MAVIND_PROFILE}" = "full" ] && [ -f "${BIN}/mrowser" ]; then
+  install_bin mrowser
+  install -Dm644 "${REPO_ROOT}/desktop/applications/mrowser.desktop" \
+    "${ROOTFS}/usr/share/applications/mrowser.desktop"
+fi
 
 # ---------------------------------------------------------------------------
 step "desktop helper scripts"

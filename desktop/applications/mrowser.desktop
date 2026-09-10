@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Application
+Name=Mrowser
+GenericName=Web Browser
+Comment=Browse the web
+Exec=mrowser %U
+Icon=web-browser
+Terminal=false
+Categories=Network;WebBrowser;
+MimeType=text/html;x-scheme-handler/http;x-scheme-handler/https;
+StartupNotify=true
+Keywords=web;browser;internet;www;
+Actions=private;
+
+[Desktop Action private]
+Name=New Private Window
+Exec=mrowser --private
