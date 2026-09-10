@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 # Mavind session entry point. Invoked by greetd (installed) or ~/.bash_profile
-# (live ISO). Sets up the environment, then execs labwc which runs the autostart.
+# (live ISO). Sets up the environment, then runs labwc which runs the autostart.
 set -eu
 
 # --- XDG base dirs -------------------------------------------------------
@@ -32,6 +32,18 @@ else
     export GSK_RENDERER=${GSK_RENDERER:-gl}
 fi
 
+# --- VM / weak-GPU friendliness ------------------------------------
+# Hardware cursors are broken on many VM GPUs; software cursor always works.
+export WLR_NO_HARDWARE_CURSORS=1
+# If the kernel gave us no DRM render/display node (VBoxSVGA, missing driver,
+# nomodeset), fall back to the pixman software renderer so labwc still starts.
+if [ ! -e /dev/dri/renderD128 ] && [ ! -e /dev/dri/card0 ] && [ ! -e /dev/dri/card1 ]; then
+    export WLR_RENDERER=pixman
+    export LIBGL_ALWAYS_SOFTWARE=1
+    export GSK_RENDERER=cairo
+    echo "mavind-session: no /dev/dri device -> software rendering (WLR_RENDERER=pixman)" >&2
+fi
+
 # --- seat / dbus ------------------------------------------------
 if [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ] && command -v dbus-run-session >/dev/null 2>&1; then
     exec dbus-run-session -- "$0" --dbus-done
@@ -43,6 +55,27 @@ fi
 mkdir -p "$XDG_RUNTIME_DIR/mavind"
 export MAVIND_LOG="$XDG_RUNTIME_DIR/mavind/session.log"
 : > "$MAVIND_LOG"
-echo "mavind-session: starting labwc $(date -u +%FT%TZ)" >> "$MAVIND_LOG"
+echo "mavind-session: starting labwc $(date -u +%FT%TZ)  renderer=${WLR_RENDERER:-auto}" | tee -a "$MAVIND_LOG"
 
-exec labwc -C "$XDG_CONFIG_HOME/labwc" 2>>"$MAVIND_LOG"
+# Run (not exec) so we can react if the compositor fails to come up.
+set +e
+labwc -C "$XDG_CONFIG_HOME/labwc" 2>&1 | tee -a "$MAVIND_LOG"
+rc=${PIPESTATUS[0]}
+set -e
+
+if [ "${rc:-1}" -ne 0 ]; then
+    echo
+    echo "================================================================"
+    echo " Mavind desktop failed to start (labwc exit $rc)."
+    echo " Last lines of the session log:"
+    echo "----------------------------------------------------------------"
+    tail -n 25 "$MAVIND_LOG"
+    echo "----------------------------------------------------------------"
+    echo " You are now at a shell. Things to try:"
+    echo "   WLR_RENDERER=pixman labwc      # force software rendering"
+    echo "   ls -l /dev/dri                 # is there a GPU device?"
+    echo "   journalctl -b -p err           # boot errors"
+    echo " In VirtualBox: set Display > Graphics Controller = VMSVGA."
+    echo "================================================================"
+    exec "${SHELL:-/bin/bash}" -l
+fi

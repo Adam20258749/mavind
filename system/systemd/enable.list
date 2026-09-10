@@ -8,5 +8,7 @@ systemd-timesyncd.service
 systemd-resolved.service
 systemd-oomd.service
 seatd.service
-greetd.service
 mavind-firstboot.service
+# NOTE: greetd is NOT enabled here — the live ISO autologins on tty1 and execs
+# mavind-session. The installer (installer/mavind-install) enables greetd on the
+# installed system instead.
