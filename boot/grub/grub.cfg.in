@@ -6,18 +6,13 @@ set default=0
 set timeout=5
 set timeout_style=menu
 
-if loadfont /boot/grub/fonts/unicode.pf2 ; then
-  set gfxmode=auto
-  insmod all_video
-  insmod gfxterm
-  terminal_output gfxterm
-fi
-
-if background_image /boot/grub/splash.png ; then true ; fi
+# Plain console menu — no gfxterm/fonts/background, so nothing to fail to load.
+# (The stub in the standalone GRUB already set $root/$prefix to the medium.)
+terminal_output console
 set menu_color_normal=white/black
 set menu_color_highlight=black/light-magenta
 
-# Find the live medium by its volume id.
+# Re-confirm the live medium by volume id (harmless if already set).
 search --no-floppy --set=root --label @VOLID@
 
 set krn=/live/vmlinuz
