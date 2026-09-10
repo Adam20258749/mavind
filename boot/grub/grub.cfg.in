@@ -17,32 +17,32 @@ search --no-floppy --set=root --label @VOLID@
 
 set krn=/live/vmlinuz
 set ini=/live/initrd.img
-# boot=live: hand off to live-boot's initramfs scripts.
-# NOT quiet by default while Mavind is young — you should be able to see where a
-# boot stops. Both consoles get kernel printk + systemd status; tty0 is listed
-# last so /dev/console (the login prompt) is the screen on real machines, while
-# headless VMs and the CI smoke test still see the boot on ttyS0.
-set common="boot=live components loglevel=4 rd.systemd.show_status=auto console=ttyS0,115200 console=tty0"
+# boot=live hands off to live-boot's initramfs scripts. `console=` lists tty0
+# last so /dev/console is the screen on real machines, while headless VMs and CI
+# still see the boot on ttyS0.
+set common="boot=live components loglevel=3 console=ttyS0,115200 console=tty0"
+# The default entry is quiet + splash: Plymouth shows the Mavind "M" and the
+# kernel/systemd text is hidden. Use "verbose boot" below to see everything.
+set quiet="quiet splash rd.systemd.show_status=false systemd.show_status=false vt.global_cursor_default=0 plymouth.ignore-serial-consoles"
 
 menuentry "Mavind  (@PROFILE@)" {
-  echo "Loading Mavind ..."
-  linux  $krn $common
+  linux  $krn $common $quiet
   initrd $ini
 }
 
 menuentry "Mavind  —  safe graphics (software rendering, for VMs)" {
-  echo "Loading Mavind (safe graphics) ..."
-  linux  $krn $common nomodeset LIBGL_ALWAYS_SOFTWARE=1 WLR_RENDERER=pixman WLR_NO_HARDWARE_CURSORS=1
+  linux  $krn $common $quiet nomodeset LIBGL_ALWAYS_SOFTWARE=1 WLR_RENDERER=pixman WLR_NO_HARDWARE_CURSORS=1
   initrd $ini
 }
 
 menuentry "Mavind  —  load to RAM (removable medium can be unplugged)" {
-  linux  $krn $common toram
+  linux  $krn $common $quiet toram
   initrd $ini
 }
 
-menuentry "Mavind  —  quiet boot (splash, minimal text)" {
-  linux  $krn $common quiet splash
+menuentry "Mavind  —  verbose boot (show all messages, no splash)" {
+  echo "Loading Mavind (verbose) ..."
+  linux  $krn $common loglevel=7 rd.systemd.show_status=auto
   initrd $ini
 }
 

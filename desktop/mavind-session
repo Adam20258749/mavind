@@ -56,6 +56,10 @@ mkdir -p "$XDG_RUNTIME_DIR/mavind"
 export MAVIND_LOG="$XDG_RUNTIME_DIR/mavind/session.log"
 : > "$MAVIND_LOG"
 
+# Release the boot splash right before the compositor grabs DRM. --retain-splash
+# leaves the "M" frame up so there is no black flash until labwc paints.
+command -v plymouth >/dev/null 2>&1 && plymouth quit --retain-splash 2>/dev/null || true
+
 # Only pass -C if the user actually has a labwc config dir; otherwise let labwc
 # use its normal search path so it picks up /etc/xdg/labwc/{rc.xml,autostart,...}.
 LABWC_ARGS=()

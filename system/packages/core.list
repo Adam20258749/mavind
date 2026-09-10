@@ -25,6 +25,8 @@ systemd-sysv
 systemd-timesyncd
 systemd-resolved
 udev
+plymouth
+plymouth-label
 dbus
 dbus-broker
 dbus-user-session
