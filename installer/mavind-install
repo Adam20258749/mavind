@@ -107,7 +107,10 @@ VERSION_ID=$(jget "$PLAN" version_id)
 [ -b "$DISK" ] || die "not a block device: $DISK"
 echo "plan: disk=$DISK fw=$FW locale=$LOCALE keymap=$KEYMAP tz=$TZ host=$HOSTNAME" >&2
 
-case "$DISK" in *[0-9]) P1="${DISK}p1"; P2="${DISK}p2";; *) P1="${DISK}1"; P2="${DISK}2";; esac
+case "$DISK" in
+  *[0-9]) PBIOS="${DISK}p1"; PESP="${DISK}p2"; PROOT="${DISK}p3";;
+  *)      PBIOS="${DISK}1";  PESP="${DISK}2";  PROOT="${DISK}3";;
+esac
 
 prog 2 "Preparing"
 mkdir -p "$ROOTMNT"
@@ -116,18 +119,23 @@ umount -R "$ROOTMNT" 2>/dev/null || true
 prog 5 "Partitioning $DISK"
 wipefs -a "$DISK"
 sgdisk --zap-all "$DISK"
-sgdisk -n1:0:+${ESP_MB}M -t1:ef00 -c1:MAVIND-ESP  "$DISK"
-sgdisk -n2:0:0           -t2:8300 -c2:MAVIND-ROOT "$DISK"
+# BIOS boot partition (no filesystem — grub-install embeds core.img here).
+# GPT disks have no post-MBR gap grub can rely on, so without this,
+# `grub-install --target=i386-pc` fails outright on a legacy-BIOS boot/VM.
+# Harmless to include even for UEFI-only installs.
+sgdisk -n1:0:+1M          -t1:ef02 -c1:MAVIND-BIOS "$DISK"
+sgdisk -n2:0:+${ESP_MB}M -t2:ef00 -c2:MAVIND-ESP  "$DISK"
+sgdisk -n3:0:0           -t3:8300 -c3:MAVIND-ROOT "$DISK"
 partprobe "$DISK"; udevadm settle 2>/dev/null || sleep 1
 
 prog 18 "Formatting"
-mkfs.vfat -F32 -n MAVIND-ESP "$P1"
-mkfs.ext4 -F -L MAVIND-ROOT "$P2"
+mkfs.vfat -F32 -n MAVIND-ESP "$PESP"
+mkfs.ext4 -F -L MAVIND-ROOT "$PROOT"
 
 prog 25 "Mounting target"
-mount "$P2" "$ROOTMNT"
+mount "$PROOT" "$ROOTMNT"
 mkdir -p "$ROOTMNT/boot/efi"
-mount "$P1" "$ROOTMNT/boot/efi"
+mount "$PESP" "$ROOTMNT/boot/efi"
 
 prog 30 "Copying system"
 # unsquashfs prints "N% ..." progress. Run it in the background and POLL its
@@ -155,7 +163,7 @@ fi
 rm -f "$USQ_LOG"
 
 prog 80 "Writing fstab"
-RUUID=$(blkid -s UUID -o value "$P2"); EUUID=$(blkid -s UUID -o value "$P1")
+RUUID=$(blkid -s UUID -o value "$PROOT"); EUUID=$(blkid -s UUID -o value "$PESP")
 cat > "$ROOTMNT/etc/fstab" <<EOF
 UUID=$RUUID  /          ext4  defaults,noatime  0 1
 UUID=$EUUID  /boot/efi  vfat  umask=0077        0 2

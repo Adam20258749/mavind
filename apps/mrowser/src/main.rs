@@ -50,6 +50,7 @@ fn main() -> glib::ExitCode {
 }
 
 fn build(app: &Application, open_url: Option<String>) {
+    mavind_theme::load_app_css(include_str!("style.css"));
     let private = std::env::args().any(|a| a == "--private" || a == "-p");
 
     let session = if private {
@@ -67,18 +68,19 @@ fn build(app: &Application, open_url: Option<String>) {
     let back = icon_btn("go-previous-symbolic", "Back");
     let fwd = icon_btn("go-next-symbolic", "Forward");
     let reload = icon_btn("view-refresh-symbolic", "Reload");
-    let newtab = icon_btn("tab-new-symbolic", "New tab");
     let star = icon_btn("bookmark-new-symbolic", "Bookmark this page");
     let url = Entry::builder().hexpand(true).build();
+    url.add_css_class("omnibox");
     url.set_placeholder_text(Some("Search DuckDuckGo or type a URL"));
     let menu = MenuButton::builder().icon_name("open-menu-symbolic").build();
 
     let bar = GtkBox::new(Orientation::Horizontal, 4);
+    bar.add_css_class("toolbar");
     bar.set_margin_top(5);
     bar.set_margin_bottom(5);
     bar.set_margin_start(6);
     bar.set_margin_end(6);
-    for w in [&back, &fwd, &reload, &newtab] {
+    for w in [&back, &fwd, &reload] {
         bar.append(w);
     }
     bar.append(&url);
@@ -86,6 +88,13 @@ fn build(app: &Application, open_url: Option<String>) {
     bar.append(&menu);
 
     let nb = Notebook::builder().scrollable(true).show_border(false).build();
+    // Chrome puts "new tab" right next to the tab strip, not in the main
+    // toolbar — Notebook's action widget is exactly that slot.
+    let newtab = icon_btn("tab-new-symbolic", "New tab");
+    newtab.add_css_class("flat");
+    newtab.add_css_class("new-tab-action");
+    nb.set_action_widget(&newtab, gtk4::PackType::End);
+    newtab.set_visible(true);
 
     let root = GtkBox::new(Orientation::Vertical, 0);
     root.append(&bar);

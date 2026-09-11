@@ -16,6 +16,7 @@ path = "src/main.rs"
 gtk4 = { version = "0.9", features = ["v4_12"] }
 webkit6 = "0.4"
 glib = "0.20"
+mavind-theme.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 anyhow.workspace = true

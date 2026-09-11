@@ -1,5 +1,4 @@
 window { background-color: transparent; }
-.backdrop { background-color: rgba(10,10,14,0.28); }
 
 .card {
     background-color: @mavind_panel;

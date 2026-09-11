@@ -35,7 +35,8 @@
     <popupShow>Never</popupShow>
   </resize>
 
-  <!-- Panel lives on the bottom; reserve 40px so windows don't cover it. -->
+  <!-- mavind-shell (top bar + dock) reserves its own space dynamically via
+       wlr-layer-shell exclusive zones; no static margin needed here. -->
   <margin><bottom>0</bottom></margin>
 
   <keyboard>
