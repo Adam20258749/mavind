@@ -8,6 +8,10 @@
 # Uncommented so `--profile full` and `mpk install-tier optional` pull it;
 # `mpk install mrowser-engine` (alias) also works once the Mavind repo exists.
 libwebkitgtk-6.0-4        # WebKitGTK 6 (GTK4) engine for Mrowser (~90 MB)
+# WebKitGTK's Web/Network processes refuse to start without these — without
+# bubblewrap, pages silently never load (chrome renders, nothing fetches).
+bubblewrap
+xdg-dbus-proxy
 
 # --- desktop portals (screen share, sandboxed file dialogs) ----------
 # xdg-desktop-portal
