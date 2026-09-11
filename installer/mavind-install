@@ -56,6 +56,18 @@ if [ "$MODE" = probe ]; then
   cores=$(nproc)
   fw=bios; [ -d /sys/firmware/efi ] && fw=uefi
   net=false; ip route get 1.1.1.1 >/dev/null 2>&1 && net=true
+  # How much space THIS image actually needs — core/compat/full differ by GBs.
+  # Sidecar written by scripts/40-make-squashfs.sh next to the squashfs itself.
+  req_bytes=1073741824
+  for c in /run/live/medium/live/rootfs.size \
+          /lib/live/mount/medium/live/rootfs.size \
+          /run/live/rootfs/rootfs.size; do
+    if [ -f "$c" ]; then
+      v=$(cat "$c" 2>/dev/null)
+      case "$v" in ''|*[!0-9]*) ;; *) req_bytes="$v";; esac
+      break
+    fi
+  done
   # -P (pairs): values are quoted, so a MODEL with a space ("VBOX HARDDISK")
   # does not shift columns. Pull each KEY="VALUE" out of the whole line.
   disks=$(lsblk -dnb -P -o NAME,SIZE,TYPE,MODEL,TRAN 2>/dev/null | awk '
@@ -68,8 +80,8 @@ if [ "$MODE" = probe ]; then
         (started ? "," : ""), name, (size == "" ? 0 : size),
         (model == "" ? "disk" : model), (tran == "" ? "?" : tran)
       started = 1 }')
-  printf '{"mem_kb":%s,"arch":"%s","cores":%s,"firmware":"%s","network":%s,"disks":[%s]}\n' \
-    "${mem_kb:-0}" "$arch" "${cores:-1}" "$fw" "$net" "$disks"
+  printf '{"mem_kb":%s,"arch":"%s","cores":%s,"firmware":"%s","network":%s,"disks":[%s],"required_bytes":%s}\n' \
+    "${mem_kb:-0}" "$arch" "${cores:-1}" "$fw" "$net" "$disks" "$req_bytes"
   exit 0
 fi
 
@@ -136,6 +148,22 @@ prog 25 "Mounting target"
 mount "$PROOT" "$ROOTMNT"
 mkdir -p "$ROOTMNT/boot/efi"
 mount "$PESP" "$ROOTMNT/boot/efi"
+
+# Fail fast and clearly instead of 50% through unsquashfs with a bare "No
+# space left on device" — the image's real size varies a lot by profile
+# (core/compat/full), so this is read from the sidecar next to the squashfs
+# rather than assumed.
+req_bytes=1073741824
+size_sidecar="$(dirname "$SQUASH")/rootfs.size"
+if [ -f "$size_sidecar" ]; then
+  v=$(cat "$size_sidecar" 2>/dev/null)
+  case "$v" in ''|*[!0-9]*) ;; *) req_bytes="$v";; esac
+fi
+avail_bytes=$(df -B1 --output=avail "$ROOTMNT" 2>/dev/null | tail -1 | tr -d ' ')
+need_bytes=$(( req_bytes + req_bytes / 10 + 300*1024*1024 ))
+if [ -n "${avail_bytes:-}" ] && [ "$avail_bytes" -lt "$need_bytes" ]; then
+  die "not enough space on $DISK: this image needs ~$(( need_bytes / 1024 / 1024 )) MiB but only $(( avail_bytes / 1024 / 1024 )) MiB is free on the root partition — pick a bigger disk"
+fi
 
 prog 30 "Copying system"
 # unsquashfs prints "N% ..." progress. Run it in the background and POLL its

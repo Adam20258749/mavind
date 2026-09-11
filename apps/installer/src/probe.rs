@@ -24,6 +24,14 @@ pub struct Facts {
     pub firmware: String, // "uefi" | "bios"
     pub network: bool,
     pub disks: Vec<Disk>,
+    /// Installed size of THIS image (core/compat/full differ by GBs) — read
+    /// from a sidecar next to the live squashfs. Defaults to 1 GiB (the core
+    /// tier's target) if the backend is too old to report it.
+    #[serde(default = "default_required_bytes")]
+    pub required_bytes: u64,
+}
+fn default_required_bytes() -> u64 {
+    1024 * 1024 * 1024
 }
 
 impl Facts {
@@ -81,6 +89,7 @@ impl Facts {
                 .map(|o| o.status.success())
                 .unwrap_or(false),
             disks,
+            required_bytes: default_required_bytes(),
         }
     }
 
@@ -156,20 +165,25 @@ pub fn evaluate(f: &Facts) -> Vec<Check> {
     // Firmware is NOT a requirement — Mavind boots UEFI *and* BIOS. (The plan
     // still records which one, to pick the right GRUB target.)
 
-    // a usable disk — warn under 1.5 GB, only block if it can't fit the image
+    // a usable disk — sized against what THIS image actually needs (core,
+    // compat and full differ by GBs), not a number only right for one tier.
+    // Same 10% + 300 MB margin the install backend uses for its own
+    // pre-flight check, so the two never disagree.
+    let req_gib = f.required_bytes as f64 / 1e9;
+    let need_gib = req_gib * 1.1 + 0.3;
     let biggest = f.disks.iter().map(|d| d.size).max().unwrap_or(0);
     let dgib = biggest as f64 / 1e9;
     if f.disks.is_empty() {
         v.push(Check::Fail("No disks detected to install onto".into()));
-    } else if dgib >= 1.5 {
-        v.push(Check::Pass(format!("Disk available: {dgib:.1} GB")));
-    } else if dgib >= 1.05 {
+    } else if dgib >= need_gib {
+        v.push(Check::Pass(format!("Disk available: {dgib:.1} GB (this image needs ~{need_gib:.1} GB)")));
+    } else if dgib >= req_gib {
         v.push(Check::Warn(format!(
-            "Disk is only {dgib:.1} GB — Mavind fits (~1 GB) but there's little room for apps"
+            "Disk is only {dgib:.1} GB — this image needs ~{need_gib:.1} GB with safety margin; it may just barely fit"
         )));
     } else {
         v.push(Check::Fail(format!(
-            "Disk is only {dgib:.1} GB — Mavind needs about 1 GB minimum"
+            "Disk is only {dgib:.1} GB — this image needs about {need_gib:.1} GB minimum"
         )));
     }
 
