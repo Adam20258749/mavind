@@ -1,4 +1,4 @@
-# Mavind
+# Mavind by Adam
 
 **An ultra-lightweight, bootable desktop operating system that runs supported Windows applications.**
 
@@ -85,3 +85,7 @@ mavind/
 
 See [`LICENSE`](LICENSE). Mavind bundles third-party components (Linux kernel, Debian
 packages, Wine, Mesa, labwc, GTK) under their respective licenses.
+
+---
+
+## Created by Adam & Claude Code by Anthropic
