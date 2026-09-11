@@ -119,6 +119,16 @@ install -Dm644 "${SYS}/plymouth/mavind/mavind.plymouth" \
   "${ROOTFS}/usr/share/plymouth/themes/mavind/mavind.plymouth"
 install -Dm644 "${SYS}/plymouth/mavind/mavind.script" \
   "${ROOTFS}/usr/share/plymouth/themes/mavind/mavind.script"
+# Render the M from SVG (vector, no font dependency -> reliable in the
+# initramfs) rather than drawing text with Image.Text, which needs a font the
+# initramfs may not have.
+if command -v rsvg-convert >/dev/null 2>&1; then
+  rsvg-convert -w 512 -h 512 "${SYS}/plymouth/mavind/logo.svg" \
+    -o "${ROOTFS}/usr/share/plymouth/themes/mavind/logo.png"
+  log "rendered logo.png from logo.svg"
+else
+  warn "rsvg-convert not found — boot splash will have no image (install librsvg2-bin)"
+fi
 # keep the last frame on screen until labwc paints (no black flash)
 install -Dm644 "${SYS}/plymouth/plymouth-quit.service.d/retain.conf" \
   "${ROOTFS}/etc/systemd/system/plymouth-quit.service.d/retain.conf"
@@ -126,6 +136,16 @@ install -Dm644 "${SYS}/plymouth/plymouth-quit.service.d/retain.conf" \
 in_chroot "${ROOTFS}" plymouth-set-default-theme mavind 2>/dev/null \
   || echo "Theme=mavind" > "${ROOTFS}/etc/plymouth/plymouthd.conf.d/mavind.conf" 2>/dev/null \
   || { install -d "${ROOTFS}/etc/plymouth"; printf '[Daemon]\nTheme=mavind\n' > "${ROOTFS}/etc/plymouth/plymouthd.conf"; }
+
+# Plymouth needs a framebuffer *before* systemd starts. modules-load.d is too
+# late (that's systemd-time); force the common VM display drivers straight
+# into the initramfs so there is something to draw the splash on.
+install -d "${ROOTFS}/etc/initramfs-tools/conf.d"
+printf 'FRAMEBUFFER=y\n' > "${ROOTFS}/etc/initramfs-tools/conf.d/mavind-splash.conf"
+{
+  echo "# Mavind: load early so Plymouth has a framebuffer on VMs"
+  cat "${SYS}/modules-load.d/mavind-vm.conf" 2>/dev/null | grep -vE '^\s*#|^\s*$'
+} >> "${ROOTFS}/etc/initramfs-tools/modules"
 
 # ---------------------------------------------------------------------------
 step "session: greetd + labwc + mavind-session"

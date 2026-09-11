@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       libgtk-4-dev libglib2.0-dev libgtk4-layer-shell-dev libadwaita-1-dev \
       libpango1.0-dev libcairo2-dev \
       libwebkitgtk-6.0-dev \
+      librsvg2-bin \
       fakeroot fakechroot uidmap \
       qemu-system-x86 ovmf \
  && rm -rf /var/lib/apt/lists/*
