@@ -1,6 +1,6 @@
 # Mavind — Build & Feature Status
 
-_Last updated: 2026-09-11_
+_Last updated: 2026-09-11 (later same day)_
 
 This file is the honest source of truth. It does not claim anything is done that is not
 verified. "Verified" means a CI run or a human booted it and checked.
@@ -32,12 +32,13 @@ verified. "Verified" means a CI run or a human booted it and checked.
 |---|---|---|
 | labwc compositor + config | ✅ | `desktop/labwc/` |
 | Session startup (`mavind-session`) | ✅ | `desktop/mavind-session` |
-| `mavind-shell` panel: clock, launcher, power menu | 🟡 | Rust/GTK4 crate builds; taskbar (wlr-foreign-toplevel) is TODO; panel restyled "glass" (translucent, theme-aware) |
-| App launcher (Start Menu) | 🟡 | `mavind-launcher`: native GTK4/layer-shell crate (search, categories, power menu) — no longer wraps `wofi` |
+| `mavind-shell`: top bar + floating dock | 🟡 | Two layer-shell surfaces now (macOS-style layout): top bar (system menu, status, clock), bottom dock (pinned app launchers); taskbar (wlr-foreign-toplevel) is still TODO |
+| App launcher (Start Menu) | 🟡 | `mavind-launcher`: compact popup near the dock (not full-screen), dismisses on Escape or losing focus; earlier full-screen version had a capture-phase gesture bug that silently ate clicks meant for the search box and app tiles |
 | Graphical login (`mavind-greeter`) | 🟡 | Rust/GTK4 crate builds: account picker, greetd IPC client (`apps/greeter/src/greetd.rs`), power menu pre-login; not yet boot-tested against a live greetd |
-| Shared theming (`mavind-theme`) | 🟡 | Dark/light, accent color, wallpaper, "glass" (translucent panels — not a real compositor blur, labwc has none); live-reloads in Settings + the panel |
+| Shared theming (`mavind-theme`) | 🟡 | Dark/light, accent color, wallpaper, "glass" (translucent panels — not a real compositor blur, labwc has none); live-reloads in Settings + the panel; now also used by Minder and Mrowser |
 | Notifications / tray | 🟡 | tray via `mako` + StatusNotifierItem; shell tray widget TODO |
-| Minder file manager | 🟡 | Real crate: browse/copy/move/rename/delete/properties work; search + drive automount partial |
+| Minder file manager | 🟡 | Real crate: browse/copy/move/rename/delete/properties work; keyboard shortcuts (Ctrl+C/X/V, F2, Delete, Alt+Left/Right) and per-extension icons added; search + drive automount partial |
+| Mrowser browser | 🟡 | WebKitGTK crate; Chrome-style touches: new-tab button lives in the tab strip (Notebook action widget) instead of the main toolbar, rounded pill omnibox, glass toolbar. Only built for `--profile full` — not in the default `core` CI artifact |
 | Mavind Settings | 🟡 | Real crate: About / Appearance / Storage / Network panels wired to live data; others are "coming soon" panels |
 | Performance Mode | 🟡 | Toggle writes labwc + shell config; effects are already minimal by default |
 

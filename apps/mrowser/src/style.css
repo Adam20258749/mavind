@@ -1,0 +1,53 @@
+.toolbar {
+    background-color: @mavind_panel;
+    border-bottom: 1px solid @mavind_panel_border;
+}
+.toolbar button {
+    border-radius: 999px;
+    padding: 6px;
+}
+.toolbar button:hover { background-color: rgba(255,255,255,0.09); }
+
+entry.omnibox {
+    border-radius: 999px;
+    padding: 6px 14px;
+    background-color: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.09);
+}
+entry.omnibox:focus-within { border-color: @accent_color; }
+
+notebook > header {
+    background-color: @mavind_panel;
+    border-bottom: 1px solid @mavind_panel_border;
+    padding: 4px 4px 0 4px;
+}
+notebook > header > tabs > tab {
+    background-color: rgba(255,255,255,0.04);
+    border-radius: 10px 10px 0 0;
+    padding: 6px 4px 6px 10px;
+    margin-right: 2px;
+    color: @mavind_dim;
+}
+notebook > header > tabs > tab:checked {
+    background-color: @mavind_bg;
+    color: @mavind_fg;
+}
+notebook > header > tabs > tab button.flat {
+    border-radius: 999px;
+    min-width: 20px;
+    min-height: 20px;
+    padding: 2px;
+}
+notebook > header > tabs > tab button.flat:hover {
+    background-color: rgba(255,255,255,0.14);
+}
+
+.new-tab-action {
+    border-radius: 999px;
+    margin: 4px 6px;
+}
+.new-tab-action:hover { background-color: rgba(255,255,255,0.1); }
+
+window.private notebook > header { background-color: #2b1a3d; }
+
+.dim { color: @mavind_dim; }

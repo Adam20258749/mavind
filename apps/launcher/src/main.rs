@@ -1,6 +1,17 @@
-//! Mavind's Start Menu — a search-first app launcher. Each invocation is a
-//! fresh, short-lived process (spawned by the panel button / Super key),
-//! same model as the wofi popup it replaces, but Mavind-branded and themed.
+//! Mavind's Start Menu — a compact, search-first app launcher popup (not a
+//! full-screen overlay). Each invocation is a fresh, short-lived process
+//! (spawned by the dock's Launchpad icon / Super key), same model as the
+//! wofi popup it replaces, but Mavind-branded and themed.
+//!
+//! It dismisses itself three ways: Escape, losing window focus (click
+//! anywhere else), and picking an app. There is deliberately no full-screen
+//! click-catcher behind it — an earlier version used one (a capture-phase
+//! gesture on the card to swallow clicks before they reached the backdrop's
+//! dismiss handler), and that capture-phase claim was grabbing EVERY press
+//! inside the card first, including ones meant for the search entry and the
+//! app tiles — which is why search/close/open-app all looked broken at
+//! once. Focus-loss dismissal sidesteps that whole class of bug: it doesn't
+//! touch widget click routing at all.
 
 mod apps;
 
@@ -10,15 +21,17 @@ use gtk4::glib;
 use gtk4::prelude::*;
 use gtk4::{
     Align, Application, ApplicationWindow, Box as GtkBox, Button, Entry, EventControllerKey,
-    FlowBox, GestureClick, Image, Label, Orientation, Popover, PolicyType, ScrolledWindow,
-    SelectionMode, ToggleButton,
+    FlowBox, Image, Label, Orientation, Popover, PolicyType, ScrolledWindow, SelectionMode,
+    ToggleButton,
 };
-use gtk4_layer_shell::{KeyboardMode, Layer, LayerShell};
+use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 use std::cell::RefCell;
 use std::process::Command;
 use std::rc::Rc;
 
 const APP_ID: &str = "os.mavind.Launcher";
+const POPUP_WIDTH: i32 = 620;
+const POPUP_HEIGHT: i32 = 480;
 const CHIPS: &[(&str, &str)] = &[
     ("All", ""),
     ("System", "System"),
@@ -51,35 +64,16 @@ fn build(app: &Application) {
     win.init_layer_shell();
     win.set_layer(Layer::Overlay);
     win.set_namespace("mavind-launcher");
-    win.set_anchor(gtk4_layer_shell::Edge::Top, true);
-    win.set_anchor(gtk4_layer_shell::Edge::Bottom, true);
-    win.set_anchor(gtk4_layer_shell::Edge::Left, true);
-    win.set_anchor(gtk4_layer_shell::Edge::Right, true);
-    win.set_keyboard_mode(KeyboardMode::Exclusive);
-
-    let backdrop = GtkBox::new(Orientation::Vertical, 0);
-    backdrop.add_css_class("backdrop");
-    backdrop.set_hexpand(true);
-    backdrop.set_vexpand(true);
+    // Anchored to the bottom edge only: wlr-layer-shell centers the surface
+    // on the other axis, so this floats bottom-centered above the dock —
+    // not a full-screen overlay.
+    win.set_anchor(Edge::Bottom, true);
+    win.set_margin(Edge::Bottom, 84);
+    win.set_keyboard_mode(KeyboardMode::OnDemand);
 
     let card = GtkBox::new(Orientation::Vertical, 12);
     card.add_css_class("card");
-    card.set_halign(Align::Center);
-    card.set_valign(Align::Center);
-    card.set_size_request(680, 520);
-    card.set_margin_top(24);
-    card.set_margin_bottom(24);
-    card.set_margin_start(24);
-    card.set_margin_end(24);
-
-    // swallow clicks that land on the card so the backdrop's dismiss handler
-    // (added below) doesn't treat them as "clicked outside".
-    let eat = GestureClick::new();
-    eat.set_propagation_phase(gtk4::PropagationPhase::Capture);
-    eat.connect_pressed(|g, _, _, _| {
-        g.set_state(gtk4::EventSequenceState::Claimed);
-    });
-    card.add_controller(eat);
+    card.set_size_request(POPUP_WIDTH, POPUP_HEIGHT);
 
     // --- search --------------------------------------------------------
     let search = Entry::builder().placeholder_text("Search apps").build();
@@ -113,7 +107,7 @@ fn build(app: &Application) {
     let flow = FlowBox::new();
     flow.set_selection_mode(SelectionMode::None);
     flow.set_homogeneous(true);
-    flow.set_max_children_per_line(6);
+    flow.set_max_children_per_line(5);
     flow.set_min_children_per_line(3);
     flow.set_row_spacing(4);
     flow.set_column_spacing(4);
@@ -161,8 +155,7 @@ fn build(app: &Application) {
     card.append(&scroller);
     card.append(&status);
     card.append(&footer);
-    backdrop.append(&card);
-    win.set_child(Some(&backdrop));
+    win.set_child(Some(&card));
 
     let ctx: Shared = Rc::new(Ctx {
         win: win.clone(),
@@ -175,13 +168,6 @@ fn build(app: &Application) {
     });
 
     // --- wiring ----------------------------------------------------
-    {
-        let c = ctx.clone();
-        backdrop.set_can_target(true);
-        let close = GestureClick::new();
-        close.connect_pressed(move |_, _, _, _| c.win.close());
-        backdrop.add_controller(close);
-    }
     {
         let c = ctx.clone();
         search.connect_changed(move |e| rebuild(&c, &e.text()));
@@ -220,16 +206,24 @@ fn build(app: &Application) {
 
     let keys = EventControllerKey::new();
     {
-        let c = ctx.clone();
+        let win = win.clone();
         keys.connect_key_pressed(move |_, key, _, _| {
             if key == Key::Escape {
-                c.win.close();
+                win.close();
                 return glib::Propagation::Stop;
             }
             glib::Propagation::Proceed
         });
     }
     win.add_controller(keys);
+
+    // Dismiss on losing focus (clicking anywhere else) — a compositor-level
+    // signal, so it can't interfere with clicks landing on our own widgets.
+    win.connect_is_active_notify(|w| {
+        if !w.is_active() {
+            w.close();
+        }
+    });
 
     rebuild(&ctx, "");
     win.present();
@@ -267,11 +261,11 @@ fn rebuild(c: &Ctx, query: &str) {
             apps::IconRef::Name(n) => Image::from_icon_name(&n),
             apps::IconRef::Path(p) => Image::from_file(p),
         };
-        icon.set_pixel_size(44);
+        icon.set_pixel_size(40);
         let label = Label::new(Some(&entry.name));
         label.add_css_class("tile-label");
         label.set_ellipsize(gtk4::pango::EllipsizeMode::End);
-        label.set_max_width_chars(12);
+        label.set_max_width_chars(11);
         label.set_lines(2);
         label.set_wrap(true);
         label.set_justify(gtk4::Justification::Center);

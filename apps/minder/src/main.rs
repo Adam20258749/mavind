@@ -8,12 +8,14 @@ mod fsops;
 mod places;
 
 use fsops::{fmt_size, Entry};
+use gtk4::gdk::Key;
 use gtk4::gio;
 use gtk4::glib;
 use gtk4::prelude::*;
 use gtk4::{
-    Align, Application, ApplicationWindow, Box as GtkBox, Button, Entry as GtkEntry, Image, Label,
-    ListBox, ListBoxRow, Orientation, Paned, PolicyType, ScrolledWindow, SelectionMode, ToggleButton,
+    Align, Application, ApplicationWindow, Box as GtkBox, Button, Entry as GtkEntry,
+    EventControllerKey, Image, Label, ListBox, ListBoxRow, Orientation, Paned, PolicyType,
+    ScrolledWindow, SelectionMode, ToggleButton,
 };
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
@@ -97,6 +99,7 @@ fn build(app: &Application, start_arg: Option<PathBuf>) {
     t_hidden.set_tooltip_text(Some("Show hidden files"));
 
     let bar = strip(6);
+    bar.add_css_class("toolbar");
     for w in [&b_back, &b_fwd, &b_up, &b_home] {
         bar.append(w);
     }
@@ -115,6 +118,7 @@ fn build(app: &Application, start_arg: Option<PathBuf>) {
     let b_delete = Button::with_label("Delete");
     let b_props = Button::with_label("Properties");
     let ops = strip(4);
+    ops.add_css_class("ops");
     for b in [&b_open, &b_winapp, &b_copy, &b_cut, &b_paste, &b_rename, &b_delete, &b_props] {
         b.add_css_class("flat");
         ops.append(b);
@@ -399,6 +403,63 @@ fn build(app: &Application, start_arg: Option<PathBuf>) {
         glib::ControlFlow::Continue
     });
 
+    // keyboard shortcuts — re-trigger the same buttons the mouse uses, so
+    // there is exactly one place each action's logic lives.
+    let keys = EventControllerKey::new();
+    {
+        let search = search.clone();
+        let path_entry = path_entry.clone();
+        keys.connect_key_pressed(move |_, key, _, mods| {
+            // Let Ctrl+C/X/V, Backspace etc. do normal text editing while
+            // either entry has focus — only Ctrl+F (jump to search) makes
+            // sense regardless of where focus is.
+            if key != Key::f && (search.has_focus() || path_entry.has_focus()) {
+                return glib::Propagation::Proceed;
+            }
+            let ctrl = mods.contains(gtk4::gdk::ModifierType::CONTROL_MASK);
+            let alt = mods.contains(gtk4::gdk::ModifierType::ALT_MASK);
+            // `.activate()` fires a button's normal "clicked" handler (GtkButton
+            // installs "clicked" as its class activate-signal) without needing
+            // a second copy of what each action does.
+            match (ctrl, alt, key) {
+                (true, _, Key::c) => {
+                    b_copy.activate();
+                }
+                (true, _, Key::x) => {
+                    b_cut.activate();
+                }
+                (true, _, Key::v) => {
+                    b_paste.activate();
+                }
+                (true, _, Key::n) => {
+                    b_newdir.activate();
+                }
+                (true, _, Key::f) => {
+                    search.grab_focus();
+                }
+                (true, _, Key::h) => t_hidden.set_active(!t_hidden.is_active()),
+                (_, true, Key::Left) => {
+                    b_back.activate();
+                }
+                (_, true, Key::Right) => {
+                    b_fwd.activate();
+                }
+                (_, _, Key::F2) => {
+                    b_rename.activate();
+                }
+                (_, _, Key::Delete) => {
+                    b_delete.activate();
+                }
+                (_, _, Key::BackSpace) => {
+                    b_up.activate();
+                }
+                _ => return glib::Propagation::Proceed,
+            }
+            glib::Propagation::Stop
+        });
+    }
+    win.add_controller(keys);
+
     rebuild_places(&ctx);
     refresh(&ctx);
     win.present();
@@ -486,20 +547,7 @@ fn rebuild_places(c: &Ctx) {
 
 // ---- helpers ------------------------------------------------------
 fn install_css() {
-    let css = gtk4::CssProvider::new();
-    css.load_from_string(
-        "window{background:#1c1c22;color:#e6e6ec}\
-         .path{font-family:monospace}\
-         .places row{padding:6px 8px}\
-         .places .removable{color:#63d2d6}\
-         list.files row{padding:4px 6px;border-bottom:1px solid #23232b}\
-         .dim{color:#9a9aa6;font-size:11px}",
-    );
-    gtk4::style_context_add_provider_for_display(
-        &gtk4::gdk::Display::default().unwrap(),
-        &css,
-        gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
-    );
+    mavind_theme::load_app_css(include_str!("style.css"));
 }
 
 fn strip(spacing: i32) -> GtkBox {
@@ -520,13 +568,7 @@ fn clear(list: &ListBox) {
 fn file_row(e: &Entry) -> ListBoxRow {
     let row = ListBoxRow::new();
     let hb = GtkBox::new(Orientation::Horizontal, 8);
-    let icon = Image::from_icon_name(if e.is_dir {
-        "folder-symbolic"
-    } else if is_windows_exe(&e.path) {
-        "application-x-executable-symbolic"
-    } else {
-        "text-x-generic-symbolic"
-    });
+    let icon = Image::from_icon_name(if e.is_dir { "folder-symbolic" } else { file_icon_name(&e.path) });
     let name = Label::new(Some(&e.name));
     name.set_halign(Align::Start);
     name.set_hexpand(true);
@@ -541,6 +583,26 @@ fn file_row(e: &Entry) -> ListBoxRow {
     hb.append(&size);
     row.set_child(Some(&hb));
     row
+}
+
+/// A reasonable symbolic icon by extension. Best-effort — an unrecognised
+/// extension just falls back to a generic document icon.
+fn file_icon_name(p: &Path) -> &'static str {
+    if is_windows_exe(p) {
+        return "application-x-executable-symbolic";
+    }
+    let ext = p.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
+    match ext.as_str() {
+        "png" | "jpg" | "jpeg" | "gif" | "bmp" | "webp" | "svg" | "avif" => "image-x-generic-symbolic",
+        "mp3" | "flac" | "wav" | "ogg" | "opus" | "m4a" => "audio-x-generic-symbolic",
+        "mp4" | "mkv" | "webm" | "avi" | "mov" => "video-x-generic-symbolic",
+        "pdf" => "x-office-document-symbolic",
+        "zip" | "tar" | "gz" | "xz" | "zst" | "7z" | "rar" => "package-x-generic-symbolic",
+        "sh" | "py" | "rs" | "c" | "cpp" | "h" | "js" | "ts" | "toml" | "json" | "yaml" | "yml" => {
+            "text-x-script-symbolic"
+        }
+        _ => "text-x-generic-symbolic",
+    }
 }
 
 fn is_windows_exe(p: &Path) -> bool {
