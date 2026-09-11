@@ -17,7 +17,7 @@ cp "${LIVE}/filesystem.squashfs"     "${ISO_TREE}/live/"
 cp "${LIVE}/filesystem.size"         "${ISO_TREE}/live/" 2>/dev/null || true
 cp "${LIVE}/vmlinuz"                 "${ISO_TREE}/live/vmlinuz"
 cp "${LIVE}/initrd.img"              "${ISO_TREE}/live/initrd.img"
-echo "Mavind $(. "${REPO_ROOT}/system/os-release"; echo "${VERSION_ID:-0.1.0}")" \
+echo "Mavind $(. "${REPO_ROOT}/system/os-release"; echo "${VERSION_ID:-1.0.2}")" \
   > "${ISO_TREE}/.disk/info" 2>/dev/null || { mkdir -p "${ISO_TREE}/.disk"; echo "Mavind" > "${ISO_TREE}/.disk/info"; }
 
 step "grub menu (mavind.cfg)"

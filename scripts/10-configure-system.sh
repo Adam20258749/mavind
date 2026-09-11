@@ -16,8 +16,8 @@ chroot_mount "${ROOTFS}"
 # ---------------------------------------------------------------------------
 step "branding"
 # render os-release with the version stamped by build-iso.sh
-_vid="${MAVIND_VERSION_ID:-0.1.0}"
-_ver="${MAVIND_VERSION:-0.1.0}"
+_vid="${MAVIND_VERSION_ID:-1.0.2}"
+_ver="${MAVIND_VERSION:-1.0.2}"
 _bid="${MAVIND_BUILD_ID:-unknown}"
 sed -e "s|@VERSION_ID@|${_vid}|g" -e "s|@VERSION@|${_ver}|g" -e "s|@BUILD_ID@|${_bid}|g" \
     "${SYS}/os-release" > "${ROOTFS}/usr/lib/os-release"

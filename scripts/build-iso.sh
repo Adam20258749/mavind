@@ -59,7 +59,7 @@ need_cmd mmdebstrap chroot mksquashfs xorriso mtools grub-mkstandalone \
 _gd="$(git -C "${REPO_ROOT}" describe --tags --always --dirty 2>/dev/null || true)"
 _gc="$(git -C "${REPO_ROOT}" rev-parse --short HEAD 2>/dev/null || echo unknown)"
 _bd="$(date -u -d "@${SOURCE_DATE_EPOCH}" +%Y%m%d 2>/dev/null || date -u +%Y%m%d)"
-: "${MAVIND_BASE_VERSION:=0.1.0}"
+: "${MAVIND_BASE_VERSION:=1.0.2}"
 if [ -n "${_gd}" ] && printf '%s' "${_gd}" | grep -q '^v\?[0-9]'; then
   MAVIND_VERSION_ID="${_gd#v}"
 else
