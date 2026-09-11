@@ -10,11 +10,15 @@ command -v xdg-desktop-portal >/dev/null && /usr/libexec/xdg-desktop-portal & 2>
 
 # --- wallpaper ---------------------------------------------------
 PERF="${XDG_CONFIG_HOME:-$HOME/.config}/mavind/performance.conf"
-WALL=/usr/share/backgrounds/mavind/wallpaper.png
+# Settings -> Appearance always writes/converts into this exact path.
+USER_WALL="${XDG_CONFIG_HOME:-$HOME/.config}/mavind/wallpaper.png"
+SYS_WALL=/usr/share/backgrounds/mavind/wallpaper.png
 if [ -r "$PERF" ] && grep -qE '^\s*wallpaper\s*=\s*solid' "$PERF"; then
     swaybg -c '#1c1c22' &
-elif [ -f "$WALL" ]; then
-    swaybg -i "$WALL" -m fill &
+elif [ -f "$USER_WALL" ]; then
+    swaybg -i "$USER_WALL" -m fill &
+elif [ -f "$SYS_WALL" ]; then
+    swaybg -i "$SYS_WALL" -m fill &
 else
     swaybg -c '#1c1c22' &
 fi

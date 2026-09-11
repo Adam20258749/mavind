@@ -34,7 +34,7 @@ install_bin() {
 }
 
 for c in mavind-shell mavind-system-monitor mavind-windows-apps minder mavind-settings \
-         mavind-installer mavind-oobe mpk; do
+         mavind-installer mavind-oobe mavind-launcher mavind-greeter mpk; do
   install_bin "$c"
 done
 # CLI alias for the wine core
@@ -64,6 +64,9 @@ install -Dm755 "${REPO_ROOT}/system/oobe/session"          "${ROOTFS}/usr/lib/ma
 install -Dm755 "${REPO_ROOT}/system/oobe/mavind-oobe-apply" "${ROOTFS}/usr/bin/mavind-oobe-apply"
 install -Dm644 "${REPO_ROOT}/system/oobe/mavind-oobe.service" \
   "${ROOTFS}/usr/lib/systemd/system/mavind-oobe.service"
+# Greeter: session bring-up for the graphical login screen (greetd runs this
+# directly — see system/greetd/config.toml — no separate service unit needed)
+install -Dm755 "${REPO_ROOT}/system/greeter/session" "${ROOTFS}/usr/lib/mavind/greeter/session"
 # GUI launcher for the installer (shown on the live desktop)
 install -Dm644 /dev/stdin "${ROOTFS}/usr/share/applications/mavind-installer.desktop" <<'EOF'
 [Desktop Entry]

@@ -4,6 +4,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "libs/mavind-theme",
     "desktop/mavind-shell",
     "apps/system-monitor",
     "apps/windows-apps",
@@ -11,6 +12,8 @@ members = [
     "apps/settings",
     "apps/installer",
     "apps/oobe",
+    "apps/launcher",
+    "apps/greeter",
     "apps/mrowser",
     "packages/mpk",
 ]
@@ -19,6 +22,7 @@ members = [
 # still compile-checked by CI's `--workspace` build and built explicitly for
 # `--profile full`.
 default-members = [
+    "libs/mavind-theme",
     "desktop/mavind-shell",
     "apps/system-monitor",
     "apps/windows-apps",
@@ -26,6 +30,8 @@ default-members = [
     "apps/settings",
     "apps/installer",
     "apps/oobe",
+    "apps/launcher",
+    "apps/greeter",
     "packages/mpk",
 ]
 
@@ -43,6 +49,7 @@ anyhow = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 libc = "0.2"
+mavind-theme = { path = "libs/mavind-theme" }
 
 [profile.release]
 opt-level = "z"      # optimize for size — this is a tiny OS

@@ -68,7 +68,7 @@ mkdir -p /etc/greetd
   echo 'vt = 1'
   echo
   echo '[default_session]'
-  echo 'command = "agreety --cmd /usr/bin/mavind-session"'
+  echo 'command = "/usr/lib/mavind/greeter/session"'
   echo 'user = "greeter"'
   if [ "$AUTO" = true ]; then
     echo

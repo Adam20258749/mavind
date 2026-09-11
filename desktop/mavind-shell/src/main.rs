@@ -46,7 +46,7 @@ fn main() -> glib::ExitCode {
 }
 
 fn build_panels(app: &Application) {
-    load_css();
+    mavind_theme::load_app_css(include_str!("style.css"));
 
     let display = gtk4::gdk::Display::default().expect("no display");
     let monitors = display.monitors();
@@ -147,6 +147,7 @@ fn make_panel(app: &Application, monitor: Option<gtk4::gdk::Monitor>) -> Applica
         let net = net.clone();
         let vol = vol.clone();
         let bat = bat.clone();
+        let last_theme_change = std::cell::Cell::new(mavind_theme::theme_css_mtime());
         move || {
             clock.set_label(&status::clock_text());
             net.set_label(&status::network_text());
@@ -158,6 +159,13 @@ fn make_panel(app: &Application, monitor: Option<gtk4::gdk::Monitor>) -> Applica
                 }
                 None => bat.set_visible(false),
             }
+            // Pick up live Appearance changes (Settings -> Appearance) without
+            // a dedicated file-watcher — this timer already runs every second.
+            let now = mavind_theme::theme_css_mtime();
+            if now != last_theme_change.get() {
+                last_theme_change.set(now);
+                mavind_theme::reload_theme_css();
+            }
             glib::ControlFlow::Continue
         }
     };
@@ -165,16 +173,6 @@ fn make_panel(app: &Application, monitor: Option<gtk4::gdk::Monitor>) -> Applica
     glib::timeout_add_seconds_local(TICK_SECONDS, refresh);
 
     window
-}
-
-fn load_css() {
-    let provider = gtk4::CssProvider::new();
-    provider.load_from_string(include_str!("style.css"));
-    gtk4::style_context_add_provider_for_display(
-        &gtk4::gdk::Display::default().expect("no display"),
-        &provider,
-        gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
-    );
 }
 
 /// Spawn a detached child; never blocks the panel, never panics on failure.

@@ -1,6 +1,6 @@
 [package]
-name = "mavind-shell"
-description = "Mavind desktop panel: launcher, taskbar, tray, clock, power menu"
+name = "mavind-launcher"
+description = "Mavind's Start Menu — search-first app launcher"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,7 +9,7 @@ repository.workspace = true
 authors.workspace = true
 
 [[bin]]
-name = "mavind-shell"
+name = "mavind-launcher"
 path = "src/main.rs"
 
 [dependencies]

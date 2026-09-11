@@ -86,9 +86,9 @@ libwayland-egl1
 seatd
 
 # --- desktop: compositor + helpers --------------------------------
+# (app launcher is the native mavind-launcher binary, not wofi)
 labwc
 foot
-wofi
 mako-notifier
 swaybg
 swayidle

@@ -1,0 +1,14 @@
+.title { font-weight: bold; font-size: 16px; color: @accent_color; margin-bottom: 6px; }
+.k { color: @mavind_dim; }
+.card { background-color: @mavind_card; border-radius: 10px; padding: 12px; margin-bottom: 8px; }
+
+.swatch {
+    min-width: 28px;
+    min-height: 28px;
+    border-radius: 999px;
+    border: 2px solid transparent;
+    padding: 0;
+}
+.swatch.active { border-color: @mavind_fg; }
+
+.theme-toggle.active { background-color: @accent_soft; color: @accent_color; }
