@@ -1,6 +1,6 @@
 [package]
-name = "mavind-shell"
-description = "Mavind desktop panel: launcher, taskbar, tray, clock, power menu"
+name = "mavind-greeter"
+description = "Mavind's graphical login screen (a greetd client)"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,7 +9,7 @@ repository.workspace = true
 authors.workspace = true
 
 [[bin]]
-name = "mavind-shell"
+name = "mavind-greeter"
 path = "src/main.rs"
 
 [dependencies]
@@ -17,6 +17,8 @@ gtk4 = { version = "0.9", features = ["v4_12"] }
 gtk4-layer-shell = "0.4"
 glib = "0.20"
 mavind-theme.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 anyhow.workspace = true
 
 [lints.rust]

@@ -1,12 +1,13 @@
 # greetd — the login manager for an INSTALLED Mavind system.
 # The live ISO bypasses this with tty1 autologin (see getty-autologin.conf).
 #
-# agety is greetd's built-in text greeter (zero extra deps). Swap `command`
-# for `gtkgreet -l -c mavind-session` once gtkgreet is packaged in Mavind.
+# command runs mavind-greeter (a labwc + GTK4 login screen, see apps/greeter)
+# as the unprivileged "greeter" user; it talks to greetd over $GREETD_SOCK to
+# authenticate and start the real mavind-session for whoever logs in.
 
 [terminal]
 vt = 1
 
 [default_session]
-command = "agreety --cmd /usr/bin/mavind-session"
+command = "/usr/lib/mavind/greeter/session"
 user = "greeter"

@@ -15,6 +15,7 @@ path = "src/main.rs"
 [dependencies]
 gtk4 = { version = "0.9", features = ["v4_12"] }
 glib = "0.20"
+mavind-theme.workspace = true
 anyhow.workspace = true
 
 [lints.rust]

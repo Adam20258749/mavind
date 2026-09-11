@@ -1,0 +1,25 @@
+#!/bin/sh
+# Mavind login screen: bring up a bare labwc with mavind-greeter as the only
+# client. greetd runs this script fresh whenever a greeter is needed (boot,
+# and again after every logout) — no retry loop required here.
+set -eu
+
+export XDG_RUNTIME_DIR=/run/mavind-greeter
+mkdir -p "$XDG_RUNTIME_DIR"
+chmod 700 "$XDG_RUNTIME_DIR"
+export XDG_SESSION_TYPE=wayland
+export XDG_CURRENT_DESKTOP=Mavind
+export GDK_BACKEND=wayland
+export WLR_NO_HARDWARE_CURSORS=1
+
+# software rendering if there's no usable GPU node (VMs, nomodeset)
+if [ ! -e /dev/dri/renderD128 ] && [ ! -e /dev/dri/card0 ] && [ ! -e /dev/dri/card1 ]; then
+    export WLR_RENDERER=pixman
+    export LIBGL_ALWAYS_SOFTWARE=1
+    export GSK_RENDERER=cairo
+fi
+
+echo "mavind-greeter: starting" >&2
+# labwc -s CMD: run CMD as startup client; labwc exits when it does (which
+# also happens when greetd tears this session down after a successful login).
+exec dbus-run-session -- labwc -s "mavind-greeter"

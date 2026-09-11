@@ -1,36 +1,50 @@
-/* Mavind panel styling. Flat, dark, no effects. */
+/* Mavind panel styling — glass: translucent, tinted, no live blur (see
+   docs/APPEARANCE.md). Colors come from the shared theme (@mavind_panel etc,
+   defined by mavind-theme and re-applied live by reload_theme_css()). */
 .mavind-panel {
-    background-color: #16161c;
-    color: #e6e6ec;
-    padding: 2px 8px;
-    border-top: 1px solid #2a2a33;
+    background-color: @mavind_panel;
+    color: @mavind_fg;
+    padding: 3px 10px;
+    border-top: 1px solid @mavind_panel_border;
+    box-shadow: 0 -1px 0 rgba(255,255,255,0.04) inset, 0 6px 24px rgba(0,0,0,0.25);
     font-family: sans-serif;
     font-size: 12px;
-    min-height: 36px;
+    min-height: 38px;
 }
 
 .mavind-panel button {
     background: transparent;
     border: none;
     box-shadow: none;
-    color: #e6e6ec;
-    padding: 2px 10px;
-    margin: 0 1px;
-    border-radius: 6px;
+    color: @mavind_fg;
+    padding: 3px 12px;
+    margin: 0 2px;
+    border-radius: 999px;
 }
 
 .mavind-panel button:hover {
-    background-color: #2a2a33;
+    background-color: rgba(255,255,255,0.09);
+}
+
+.mavind-panel button:active {
+    background-color: @accent_soft;
 }
 
 .mavind-panel .launcher {
-    font-weight: bold;
-    color: #b08cf6;
+    font-weight: 700;
+    color: @accent_color;
+    background-color: @accent_soft;
+}
+
+.mavind-panel .launcher:hover {
+    background-color: @accent_soft;
+    filter: brightness(1.15);
 }
 
 .mavind-panel .status {
     padding: 0 8px;
-    color: #b9b9c3;
+    color: @mavind_dim;
+    font-variant-numeric: tabular-nums;
 }
 
 .mavind-panel .clock {
@@ -39,9 +53,9 @@
 }
 
 .mavind-panel .power:hover {
-    background-color: #7a2530;
+    background-color: rgba(224,90,100,0.28);
 }
 
 .mavind-panel .taskbar {
-    color: #6a6a76;
+    color: @mavind_dim;
 }

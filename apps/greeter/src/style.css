@@ -1,0 +1,53 @@
+window { background-color: @mavind_bg; color: @mavind_fg; }
+.clock { font-size: 64px; font-weight: 300; color: #ffffff; }
+.date { font-size: 16px; color: rgba(255,255,255,0.75); }
+
+.card {
+    background-color: @mavind_panel;
+    border: 1px solid @mavind_panel_border;
+    border-radius: 22px;
+    box-shadow: 0 18px 48px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06);
+    padding: 28px 32px;
+}
+
+.avatar {
+    background-color: @accent_soft;
+    color: @accent_color;
+    border-radius: 999px;
+    font-size: 30px;
+    font-weight: 700;
+    min-width: 72px;
+    min-height: 72px;
+}
+.avatar.small { min-width: 52px; min-height: 52px; font-size: 20px; }
+
+.tile { border-radius: 16px; padding: 14px; }
+.tile:hover { background-color: rgba(255,255,255,0.07); }
+
+.display-name { font-size: 18px; font-weight: 600; }
+
+entry.login-pass {
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-size: 15px;
+    background-color: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.10);
+}
+entry.login-pass:focus-within { border-color: @accent_color; }
+
+.login-error { color: #ff8a90; font-size: 13px; }
+.login-error.hidden { opacity: 0; }
+
+.back-btn { color: rgba(255,255,255,0.7); }
+
+.power-bar { padding: 16px; }
+.power-bar button {
+    color: rgba(255,255,255,0.85);
+    background-color: rgba(255,255,255,0.06);
+    border-radius: 999px;
+    min-width: 38px;
+    min-height: 38px;
+}
+.power-bar button:hover { background-color: rgba(255,255,255,0.14); }
+
+.scrim { background-color: rgba(0,0,0,0.32); }
