@@ -189,9 +189,20 @@ in_chroot "${ROOTFS}" chown mavind:mavind /home/mavind/.bash_profile
 # ---------------------------------------------------------------------------
 step "skel + wallpaper + xdg dirs"
 cp -aT "${SYS}/skel" "${ROOTFS}/etc/skel"
-install -Dm644 "${DESK}/assets/wallpaper.png" \
-  "${ROOTFS}/usr/share/backgrounds/mavind/wallpaper.png" 2>/dev/null || \
-  warn "no wallpaper.png yet — shell will use a solid colour"
+install -d "${ROOTFS}/usr/share/backgrounds/mavind"
+if command -v rsvg-convert >/dev/null 2>&1; then
+  # wallpaper.png is the default (used by autostart's swaybg fallback);
+  # the others are extra choices Settings -> Appearance offers.
+  rsvg-convert -w 1920 -h 1080 "${DESK}/assets/wallpaper.svg" \
+    -o "${ROOTFS}/usr/share/backgrounds/mavind/wallpaper.png"
+  rsvg-convert -w 1920 -h 1080 "${DESK}/assets/wallpaper-ocean.svg" \
+    -o "${ROOTFS}/usr/share/backgrounds/mavind/ocean.png"
+  rsvg-convert -w 1920 -h 1080 "${DESK}/assets/wallpaper-sunset.svg" \
+    -o "${ROOTFS}/usr/share/backgrounds/mavind/sunset.png"
+  log "rendered wallpaper.png, ocean.png, sunset.png from SVG"
+else
+  warn "rsvg-convert not found — shell will use a solid colour (install librsvg2-bin)"
+fi
 # make sure the live user gets the skel we just wrote
 in_chroot "${ROOTFS}" bash -c 'cp -aT /etc/skel /home/mavind && chown -R mavind:mavind /home/mavind'
 

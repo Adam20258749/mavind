@@ -12,3 +12,9 @@
 .swatch.active { border-color: @mavind_fg; }
 
 .theme-toggle.active { background-color: @accent_soft; color: @accent_color; }
+
+.swatch-frame {
+    border-radius: 10px;
+    border: 1px solid @mavind_panel_border;
+    overflow: hidden;
+}

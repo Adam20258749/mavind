@@ -290,6 +290,43 @@ fn panel_appearance() -> GtkBox {
     wp_title.set_margin_top(10);
     c.append(&wp_title);
 
+    let built_in_row = GtkBox::new(Orientation::Horizontal, 10);
+    let mut any_built_in = false;
+    for (name, path) in [
+        ("Nebula", "/usr/share/backgrounds/mavind/wallpaper.png"),
+        ("Ocean", "/usr/share/backgrounds/mavind/ocean.png"),
+        ("Sunset", "/usr/share/backgrounds/mavind/sunset.png"),
+    ] {
+        if !std::path::Path::new(path).is_file() {
+            continue;
+        }
+        any_built_in = true;
+        let col = GtkBox::new(Orientation::Vertical, 4);
+        let preview = gtk4::Picture::for_filename(path);
+        preview.set_content_fit(gtk4::ContentFit::Cover);
+        preview.set_size_request(96, 56);
+        let frame = GtkBox::new(Orientation::Vertical, 0);
+        frame.add_css_class("swatch-frame");
+        frame.append(&preview);
+        let btn = Button::new();
+        btn.set_child(Some(&frame));
+        btn.set_has_frame(false);
+        let label = Label::new(Some(name));
+        label.add_css_class("k");
+        col.append(&btn);
+        col.append(&label);
+        let path = path.to_string();
+        btn.connect_clicked(move |_| {
+            if let Err(e) = std::fs::copy(&path, mavind_theme::wallpaper_path()) {
+                eprintln!("mavind-settings: could not set wallpaper: {e}");
+            }
+        });
+        built_in_row.append(&col);
+    }
+    if any_built_in {
+        c.append(&built_in_row);
+    }
+
     let wp_btn = Button::with_label("Choose an image…");
     wp_btn.set_halign(Align::Start);
     wp_btn.connect_clicked(|_| {
