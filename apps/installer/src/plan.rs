@@ -69,7 +69,7 @@ pub fn current_version() -> String {
             }
         }
     }
-    "0.1.0".into()
+    "1.0.2".into()
 }
 
 /// Releases offered on the "choose version" page. Multi-version media ship
