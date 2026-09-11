@@ -76,7 +76,9 @@ fn build(app: &Application) {
     // (added below) doesn't treat them as "clicked outside".
     let eat = GestureClick::new();
     eat.set_propagation_phase(gtk4::PropagationPhase::Capture);
-    eat.connect_pressed(|g, _, _, _| g.set_state(gtk4::EventSequenceState::Claimed));
+    eat.connect_pressed(|g, _, _, _| {
+        g.set_state(gtk4::EventSequenceState::Claimed);
+    });
     card.add_controller(eat);
 
     // --- search --------------------------------------------------------
