@@ -39,14 +39,18 @@ pub fn start(plan_path: &Path) -> Receiver<Msg> {
             }
         };
 
-        if let Some(err) = child.stderr.take() {
+        // Read stderr on its own thread, but keep the JoinHandle: we must not
+        // report Done until it has finished, or the last error lines (still
+        // in flight on that thread) can race behind Done and never reach the
+        // GUI — the exact "log stops, no error shown" symptom.
+        let stderr_handle = child.stderr.take().map(|err| {
             let tx2: Sender<Msg> = tx.clone();
             thread::spawn(move || {
                 for line in BufReader::new(err).lines().map_while(Result::ok) {
                     let _ = tx2.send(Msg::Log(line));
                 }
-            });
-        }
+            })
+        });
         if let Some(out) = child.stdout.take() {
             for line in BufReader::new(out).lines().map_while(Result::ok) {
                 if let Some(rest) = line.strip_prefix("PROGRESS:") {
@@ -60,6 +64,11 @@ pub fn start(plan_path: &Path) -> Receiver<Msg> {
             }
         }
         let code = child.wait().map(|s| s.code().unwrap_or(-1)).unwrap_or(-1);
+        // Block until every stderr line is enqueued (happens-before Done on
+        // this single-consumer channel), THEN report completion.
+        if let Some(h) = stderr_handle {
+            let _ = h.join();
+        }
         let _ = tx.send(Msg::Done(code));
     });
     rx

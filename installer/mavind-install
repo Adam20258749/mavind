@@ -130,11 +130,29 @@ mkdir -p "$ROOTMNT/boot/efi"
 mount "$P1" "$ROOTMNT/boot/efi"
 
 prog 30 "Copying system"
-# unsquashfs prints "N% ..." progress; map it onto 30..78.
-unsquashfs -f -d "$ROOTMNT" "$SQUASH" 2>&1 | while IFS= read -r line; do
-  p=$(printf '%s' "$line" | grep -oE '[0-9]+%' | tr -d '%' | tail -1 || true)
+# unsquashfs prints "N% ..." progress. Run it in the background and POLL its
+# output file for the percentage instead of piping through a filter — piping
+# through `| while read` would silently discard any line that isn't a bare
+# percentage, which is exactly where a real error message would be, and
+# `set -o pipefail` would then kill the script with no visible cause.
+USQ_LOG=$(mktemp)
+unsquashfs -f -d "$ROOTMNT" "$SQUASH" > "$USQ_LOG" 2>&1 &
+USQ_PID=$!
+while kill -0 "$USQ_PID" 2>/dev/null; do
+  p=$(grep -oE '[0-9]+%' "$USQ_LOG" 2>/dev/null | tail -1 | tr -d '%' || true)
   [ -n "${p:-}" ] && prog $(( 30 + p * 48 / 100 )) "Copying system ($p%)"
+  sleep 0.4
 done
+set +e
+wait "$USQ_PID"; USQ_RC=$?
+set -e
+if [ "$USQ_RC" -ne 0 ]; then
+  echo "unsquashfs failed (exit $USQ_RC) — last output:" >&2
+  tail -n 60 "$USQ_LOG" >&2
+  rm -f "$USQ_LOG"
+  die "unsquashfs failed copying the system (exit $USQ_RC)"
+fi
+rm -f "$USQ_LOG"
 
 prog 80 "Writing fstab"
 RUUID=$(blkid -s UUID -o value "$P2"); EUUID=$(blkid -s UUID -o value "$P1")
