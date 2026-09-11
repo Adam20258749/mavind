@@ -82,6 +82,7 @@ jobs:
             cargo rustc pkg-config binutils \
             libgtk-4-dev libglib2.0-dev libgtk4-layer-shell-dev libadwaita-1-dev \
             libpango1.0-dev libcairo2-dev \
+            librsvg2-bin \
             zstd file rsync fakeroot uidmap
           # Mrowser (WebKitGTK) — only compiled for --profile full, but the
           # cache key + `cargo metadata` still resolve the whole workspace.

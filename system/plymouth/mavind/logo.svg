@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Mavind "M" mark. Drawn as a stroked path, no font dependency, so
+     rsvg-convert renders it identically anywhere. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#1c1c22"/>
+  <path d="M 96,404 L 96,116 L 256,296 L 416,116 L 416,404"
+        fill="none" stroke="#8a5cf6" stroke-width="72"
+        stroke-linejoin="round" stroke-linecap="round"/>
+</svg>
