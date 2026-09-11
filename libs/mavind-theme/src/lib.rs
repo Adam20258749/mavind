@@ -130,16 +130,25 @@ pub fn wallpaper_path() -> PathBuf {
     config_dir().join("wallpaper.png")
 }
 
+thread_local! {
+    // GTK looks up providers through the display, not through this Vec — but
+    // keeping our own strong reference for the process's lifetime rules out
+    // any question of a provider being torn down early.
+    static PROVIDERS: std::cell::RefCell<Vec<gtk4::CssProvider>> = std::cell::RefCell::new(Vec::new());
+}
+
 /// Load an app's own stylesheet, then layer the shared theme tokens (accent
 /// colour, light/dark) on top. Call once, right after building the GTK
 /// `Application`. Cheap: two small `CssProvider`s.
 pub fn load_app_css(app_css: &str) {
     let Some(display) = gtk4::gdk::Display::default() else {
+        eprintln!("mavind-theme: load_app_css: no default GdkDisplay — CSS not loaded");
         return;
     };
     let base = gtk4::CssProvider::new();
     base.load_from_string(app_css);
     gtk4::style_context_add_provider_for_display(&display, &base, gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION);
+    PROVIDERS.with(|p| p.borrow_mut().push(base));
     reload_theme_css();
 }
 
@@ -153,6 +162,7 @@ pub fn load_app_css(app_css: &str) {
 /// standing up a dedicated file-watcher just for this.
 pub fn reload_theme_css() {
     let Some(display) = gtk4::gdk::Display::default() else {
+        eprintln!("mavind-theme: reload_theme_css: no default GdkDisplay — theme not applied");
         return;
     };
     let theme_css =
@@ -164,6 +174,7 @@ pub fn reload_theme_css() {
         &theme,
         gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION + 1,
     );
+    PROVIDERS.with(|p| p.borrow_mut().push(theme));
 }
 
 /// Modification time of the shared theme.css, e.g. for a long-running app

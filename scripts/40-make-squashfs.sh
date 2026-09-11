@@ -59,6 +59,11 @@ squash_b="$(stat -c%s "${SQUASH}")"
 log "rootfs (installed): $(human "${rootfs_b}")"
 log "squashfs:           $(human "${squash_b}")  (ratio $(awk "BEGIN{printf \"%.2fx\", ${rootfs_b}/${squash_b}}"))"
 
+# Sidecar next to the squashfs so the installer knows how much space THIS
+# image actually needs (core/compat/full differ by GBs) instead of assuming
+# a fixed number that's only right for one profile.
+printf '%s' "${rootfs_b}" > "${LIVE}/rootfs.size"
+
 # Quick reality check vs the ~1 GB target (installed size, core tier).
 if [ "${MAVIND_PROFILE}" = "core" ]; then
   target=$((1024*1024*1024))
