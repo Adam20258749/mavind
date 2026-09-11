@@ -57,7 +57,7 @@ Mirrors spec §19. Each phase ends with a measurable, testable milestone.
 - [ ] `memtest`-style stability soak (24 h desktop idle, no OOM, no leak)
 - [ ] Windows-app compatibility matrix: top 20 common apps with verdicts
 - [ ] Installer tested: fresh disk, dual-boot alongside Windows (shared ESP)
-- [ ] **Milestone:** `v0.1.0` tagged, ISO + checksums + manifest released
+- [ ] **Milestone:** `v1.0.2` tagged, ISO + checksums + manifest released
 
 ## Post-0.1 backlog
 
